@@ -1,4 +1,4 @@
-const CACHE_NAME = 'itsumen-timeline-v2';
+const CACHE_NAME = 'itsumen-timeline-v3';
 const urlsToCache = [
   './',
   './index.html',
@@ -30,6 +30,11 @@ self.addEventListener('activate', event => {
 
 // フェッチ：ネットワーク優先（Network First）
 self.addEventListener('fetch', event => {
+  // APIやPOSTリクエストはキャッシュしない
+  if (event.request.method !== 'GET' || event.request.url.includes('supabase.co')) {
+    return;
+  }
+
   // HTMLファイルなどは常にネットワークを確認
   if (event.request.mode === 'navigate') {
     event.respondWith(
