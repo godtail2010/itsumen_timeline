@@ -1998,8 +1998,13 @@
       const place = document.getElementById('editPlace').value.trim();
       const memo = document.getElementById('editMemo').value.trim();
       const link = document.getElementById('editLink').value.trim();
-      if (!date || !name) { showToast('日付とタイトルは必須です'); return; }
       const saveBtn = document.getElementById('saveBtn');
+      if (!date || !name) {
+        showToast('日付とタイトルは必須です');
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存する';
+        return;
+      }
       saveBtn.disabled = true; saveBtn.textContent = '保存中...';
       setSyncState('syncing');
       try {
@@ -2009,8 +2014,22 @@
         const toDelete = pendingPhotos.filter(p => p.toDelete && p.existing);
         for (const p of toDelete) { await deleteStoragePhoto(p.path); await fetch(`${SUPABASE_URL}/rest/v1/photos?storage_path=eq.${encodeURIComponent(p.path)}`, { method: 'DELETE', headers: getHdrs() }); }
         const toUpload = pendingPhotos.filter(p => p.file && !p.toDelete);
-        for (const p of toUpload) { try { const path = await uploadPhoto(p.file, evId); await sbPost('photos', { event_id: evId, storage_path: path, file_name: p.name }); } catch (ue) { console.error('upload fail', ue); showToast('⚠ 一部の写真のアップロードに失敗しました'); } }
-        closeModal('editModal'); showToast(id ? '✓ 保存しました' : '✓ 追加しました'); await loadAll();
+        for (const p of toUpload) {
+          try {
+            const path = await uploadPhoto(p.file, evId);
+            await sbPost('photos', { event_id: evId, storage_path: path, file_name: p.name });
+          } catch (ue) {
+            console.error('upload fail', ue);
+            showToast('⚠ 一部の写真のアップロードに失敗しました');
+          }
+        }
+        // Reset button before closing modal
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存する';
+        closeModal('editModal');
+        showToast(id ? '✓ 保存しました' : '✓ 追加しました');
+        setSyncState('synced');
+        await loadAll();
       } catch (e) { console.error(e); showToast('⚠ 保存失敗: ' + e.message); setSyncState('error'); }
       finally { saveBtn.disabled = false; saveBtn.textContent = '保存する'; }
     }
