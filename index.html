@@ -2004,7 +2004,7 @@
       setSyncState('syncing');
       try {
         let evId = id ? parseInt(id) : null;
-        if (id) { await sbPatch('events', id, { date, cat, name, place, memo, link }); }
+        if (evId) { await sbPatch('events', evId, { date, cat, name, place, memo, link }); }
         else { const [c] = await sbPost('events', { date, cat, name, place, memo, link }); evId = c.id; }
         const toDelete = pendingPhotos.filter(p => p.toDelete && p.existing);
         for (const p of toDelete) { await deleteStoragePhoto(p.path); await fetch(`${SUPABASE_URL}/rest/v1/photos?storage_path=eq.${encodeURIComponent(p.path)}`, { method: 'DELETE', headers: getHdrs() }); }
