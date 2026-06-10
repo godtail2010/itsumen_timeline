@@ -2256,31 +2256,6 @@
     }, { passive: true });
 
 
-    async function doLogin() {
-      const pass = document.getElementById('loginPass').value;
-      if (!pass) return;
-      const btn = document.getElementById('loginBtn');
-      btn.disabled = true; btn.textContent = 'VERIFYING...';
-      document.getElementById('loginError').style.display = 'none';
-      try {
-        const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'itsumen@example.com', password: pass })
-        });
-        const res = await r.json();
-        if (!r.ok) throw new Error(res.error_description || res.msg);
-        localStorage.setItem('itsumen_token', res.access_token);
-        document.getElementById('loginModal').classList.remove('open');
-        document.getElementById('loadingScreen').classList.remove('hidden');
-        loadAll();
-      } catch (e) {
-        document.getElementById('loginError').style.display = 'block';
-        console.error(e);
-      } finally {
-        btn.disabled = false; btn.textContent = 'ENTER';
-      }
-    }
     function toggleFilters() {
       document.getElementById('filterBar').classList.toggle('expanded');
       // 高さは ResizeObserver が検知して updateStickyTop を呼ぶ
@@ -2312,37 +2287,12 @@
     });
     window.addEventListener('resize', updateStickyTop);
 
-    function doLogout() {
-      localStorage.removeItem('itsumen_token');
-      location.reload();
-    }
 
     window.addEventListener('DOMContentLoaded', () => {
-      const token = localStorage.getItem('itsumen_token');
-      if (token) {
-        loadAll();
-      } else {
-        document.getElementById('loadingScreen').classList.add('hidden');
-        document.getElementById('loginModal').classList.add('open');
-      }
+      loadAll();
     });
   </script>
 
-  <!-- LOGIN MODAL -->
-  <div class="modal-overlay" id="loginModal">
-    <div class="modal" style="text-align:center; max-width:360px;">
-      <h2
-        style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.06em;color:var(--text);margin-bottom:8px;">
-        LOGIN</h2>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:24px;">共通パスワードを入力してください</p>
-      <div class="form-row">
-        <input type="password" id="loginPass" class="form-input" placeholder="Password"
-          style="text-align:center; font-size:16px; letter-spacing:0.2em;" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <button class="btn-primary" style="width:100%; margin-top:8px;" onclick="doLogin()" id="loginBtn">ENTER</button>
-      <div id="loginError" style="color:#ff5555; font-size:11px; margin-top:12px; display:none;">パスワードが間違っています</div>
-    </div>
-  </div>
 
 </body>
 
