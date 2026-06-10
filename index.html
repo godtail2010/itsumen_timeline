@@ -1681,8 +1681,7 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3JycXJrdHVwaHVoZWR4cGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzM1MTYsImV4cCI6MjA5MjQwOTUxNn0.lufn62lN7JXhka-DhtedZkfcaLXEoUkMWq_fWCTobfY';
     const STORAGE_BUCKET = 'photos';
     function getHdrs(extra = {}) {
-      const token = localStorage.getItem('itsumen_token') || SUPABASE_KEY;
-      return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...extra };
+  return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...extra };
     }
 
     async function sbGet(t, p = '') { const r = await fetch(`${SUPABASE_URL}/rest/v1/${t}?${p}`, { headers: getHdrs() }); if (r.status === 401) doLogout(); if (!r.ok) throw new Error(await r.text()); return r.json(); }
@@ -2256,31 +2255,7 @@
     }, { passive: true });
 
 
-    async function doLogin() {
-      const pass = document.getElementById('loginPass').value;
-      if (!pass) return;
-      const btn = document.getElementById('loginBtn');
-      btn.disabled = true; btn.textContent = 'VERIFYING...';
-      document.getElementById('loginError').style.display = 'none';
-      try {
-        const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'itsumen@example.com', password: pass })
-        });
-        const res = await r.json();
-        if (!r.ok) throw new Error(res.error_description || res.msg);
-        localStorage.setItem('itsumen_token', res.access_token);
-        document.getElementById('loginModal').classList.remove('open');
-        document.getElementById('loadingScreen').classList.remove('hidden');
-        loadAll();
-      } catch (e) {
-        document.getElementById('loginError').style.display = 'block';
-        console.error(e);
-      } finally {
-        btn.disabled = false; btn.textContent = 'ENTER';
-      }
-    }
+    
     function toggleFilters() {
       document.getElementById('filterBar').classList.toggle('expanded');
       // 高さは ResizeObserver が検知して updateStickyTop を呼ぶ
@@ -2317,19 +2292,14 @@
       location.reload();
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const token = localStorage.getItem('itsumen_token');
-      if (token) {
-        loadAll();
-      } else {
-        document.getElementById('loadingScreen').classList.add('hidden');
-        document.getElementById('loginModal').classList.add('open');
-      }
-    });
+    // 変更後
+window.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+});
   </script>
 
   <!-- LOGIN MODAL -->
-  <div class="modal-overlay" id="loginModal">
+  <!-- <div class="modal-overlay" id="loginModal">
     <div class="modal" style="text-align:center; max-width:360px;">
       <h2
         style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.06em;color:var(--text);margin-bottom:8px;">
@@ -2342,7 +2312,7 @@
       <button class="btn-primary" style="width:100%; margin-top:8px;" onclick="doLogin()" id="loginBtn">ENTER</button>
       <div id="loginError" style="color:#ff5555; font-size:11px; margin-top:12px; display:none;">パスワードが間違っています</div>
     </div>
-  </div>
+  </div> -->
 
 </body>
 
