@@ -1194,13 +1194,30 @@
       border-radius: 12px;
       box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
       transform: scale(0.96);
-      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, filter 0.3s ease;
       position: relative;
       z-index: 1;
+      will-change: transform, opacity, filter;
     }
 
     .lightbox.open .lightbox-img {
       transform: scale(1);
+    }
+
+    /* 写真切り替え: 進行方向へブラーしながら退場（--slide-dir: 1=次へ / -1=前へ） */
+    .lightbox.open .lightbox-img.slide-out {
+      opacity: 0;
+      transform: translateX(calc(var(--slide-dir, 1) * -64px)) scale(0.96);
+      filter: blur(12px);
+      transition-duration: 0.2s;
+    }
+
+    /* 反対側からの入場開始位置（transitionなしで瞬間配置→クラス除去でスプリング復帰） */
+    .lightbox.open .lightbox-img.slide-in {
+      opacity: 0;
+      transform: translateX(calc(var(--slide-dir, 1) * 64px)) scale(0.96);
+      filter: blur(12px);
+      transition: none;
     }
 
     .lightbox-close {
@@ -2259,24 +2276,56 @@
       document.body.style.overflow = 'hidden'; // 背景スクロール禁止
     }
 
-    function renderLightbox(ev) {
+    let lbSwapTimer = null;
+    function renderLightbox(ev, dir = 0) {
       const p = ev.photos[lbIndex];
-      document.getElementById('lightboxBackdrop').style.backgroundImage = `url("${photoUrl(p.storage_path)}")`;
+      const src = photoUrl(p.storage_path);
       const img = document.getElementById('lightboxImg');
-      img.style.opacity = '0';
-      setTimeout(() => {
-        img.src = photoUrl(p.storage_path);
-        img.onload = () => img.style.opacity = '1';
-      }, 50);
+      const backdrop = document.getElementById('lightboxBackdrop');
       document.getElementById('lightboxTitle').textContent = ev.name;
       document.getElementById('lightboxCounter').textContent = `${lbIndex + 1} / ${ev.photos.length}`;
+      clearTimeout(lbSwapTimer);
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const doSwap = () => {
+        backdrop.style.backgroundImage = `url("${src}")`;
+        // 読み込み完了を待ってから差し替える（白抜け防止）
+        const pre = new Image();
+        pre.onload = pre.onerror = () => {
+          img.src = src;
+          img.classList.remove('slide-out');
+          if (!reduce && dir) {
+            // 反対側に瞬間配置してからクラスを外し、スプリングで中央へ
+            img.classList.add('slide-in');
+            void img.offsetWidth;
+            img.classList.remove('slide-in');
+          }
+          preloadNeighbors(ev);
+        };
+        pre.src = src;
+      };
+      if (!reduce && dir) {
+        img.style.setProperty('--slide-dir', dir);
+        img.classList.add('slide-out');
+        lbSwapTimer = setTimeout(doSwap, 200);
+      } else {
+        doSwap();
+      }
+    }
+
+    // 隣の写真を先読みして切り替えを待ち時間ゼロに
+    function preloadNeighbors(ev) {
+      if (!ev.photos || ev.photos.length < 2) return;
+      [1, -1].forEach(d => {
+        const i = (lbIndex + d + ev.photos.length) % ev.photos.length;
+        new Image().src = photoUrl(ev.photos[i].storage_path);
+      });
     }
 
     function lightboxNav(dir) {
       const ev = events.find(e => e.id === lbEventId);
-      if (!ev) return;
+      if (!ev || !ev.photos || ev.photos.length < 2) return;
       lbIndex = (lbIndex + dir + ev.photos.length) % ev.photos.length;
-      renderLightbox(ev);
+      renderLightbox(ev, dir);
     }
 
     function closeLightbox() {
