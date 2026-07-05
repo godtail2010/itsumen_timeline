@@ -32,8 +32,15 @@
       --text: #f0f0f0;
       --text-dim: #9ca3af;
       --text-muted: #6b7280;
+      /* 旧変数名のエイリアス（未定義参照の解消） */
+      --muted: #6b7280;
+      --surface2: #1e2025;
+      --border2: rgba(255, 255, 255, 0.14);
       --accent: #3b82f6;
       --accent-soft: rgba(59, 130, 246, 0.1);
+      --accent2: #8b5cf6;
+      --accent-grad: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
       --radius: 8px;
       --radius-sm: 6px;
       --pad: 40px;
@@ -161,7 +168,10 @@
       font-size: 12px;
       font-weight: 600;
       letter-spacing: 0.2em;
-      color: var(--accent);
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
       text-transform: uppercase;
       animation: fadeUp 0.6s ease both;
     }
@@ -247,7 +257,7 @@
       width: 56px;
       height: 56px;
       border-radius: 14px;
-      background: var(--accent);
+      background: var(--accent-grad);
       border: none;
       color: #fff;
       cursor: pointer;
@@ -255,12 +265,12 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
-      transition: all var(--transition);
+      transition: all 0.35s var(--ease-spring);
     }
 
     .fab:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 12px 32px rgba(139, 92, 246, 0.45);
     }
 
     /* ── SYNC INDICATOR (INTEGRATED) ── */
@@ -491,6 +501,24 @@
 
     .year-group {
       margin-bottom: 48px;
+      position: relative;
+    }
+
+    /* ── 年号ウォーターマーク ── */
+    .year-watermark {
+      position: absolute;
+      top: 20px;
+      right: -8px;
+      font-size: clamp(100px, 18vw, 240px);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.05em;
+      color: transparent;
+      -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.055);
+      z-index: 0;
+      pointer-events: none;
+      user-select: none;
+      font-variant-numeric: tabular-nums;
     }
 
     .year-divider {
@@ -537,6 +565,7 @@
 
     .event-item:hover {
       background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.14), 0 12px 40px rgba(0, 0, 0, 0.35);
     }
 
     .event-item.hidden {
@@ -605,6 +634,28 @@
       letter-spacing: 0.05em;
     }
 
+    /* ── カテゴリ別カラー ── */
+    [data-cat="飲み会"] { --cat-color: 245, 158, 11; }
+    [data-cat="スノボ"] { --cat-color: 56, 189, 248; }
+    [data-cat="キャンプ"] { --cat-color: 34, 197, 94; }
+    [data-cat="旅行"] { --cat-color: 167, 139, 250; }
+    [data-cat="結婚式"] { --cat-color: 244, 114, 182; }
+    [data-cat="フェス"] { --cat-color: 251, 146, 60; }
+    [data-cat="ライブ"] { --cat-color: 248, 113, 113; }
+    [data-cat="その他"] { --cat-color: 156, 163, 175; }
+
+    .cat-tag[data-cat] {
+      color: rgb(var(--cat-color));
+      background: rgba(var(--cat-color), 0.1);
+      border-color: rgba(var(--cat-color), 0.25);
+    }
+
+    .filter-btn.active[data-cat]:not([data-cat="all"]) {
+      color: rgb(var(--cat-color));
+      background: rgba(var(--cat-color), 0.12);
+      border-color: rgba(var(--cat-color), 0.3);
+    }
+
     .event-meta {
       display: flex;
       gap: 16px;
@@ -622,6 +673,8 @@
       gap: 6px;
       cursor: pointer;
       transition: color var(--transition);
+      color: inherit;
+      text-decoration: none;
     }
 
     .event-place:hover {
@@ -719,28 +772,37 @@
       -webkit-box-orient: vertical;
     }
 
-    /* ── PHOTOS ── */
+    /* ── PHOTOS (Bento grid) ── */
     .photo-strip {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(4, 84px);
+      grid-auto-rows: 84px;
+      grid-auto-flow: dense;
       gap: 8px;
-      flex-wrap: wrap;
       margin-top: 12px;
     }
 
     .photo-thumb {
-      width: 72px;
-      height: 72px;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       border-radius: var(--radius);
       cursor: pointer;
       border: 1px solid var(--border);
-      transition: all var(--transition);
-      flex-shrink: 0;
+      transition: transform 0.35s var(--ease-spring), border-color var(--transition);
+    }
+
+    /* 1枚目を大きく（Bentoの主役） */
+    .photo-thumb:first-child {
+      grid-column: span 2;
+      grid-row: span 2;
     }
 
     .photo-thumb:hover {
       transform: scale(1.04);
       border-color: var(--accent);
+      position: relative;
+      z-index: 1;
     }
 
     .photo-count-badge {
@@ -937,7 +999,7 @@
 
     .btn-primary {
       padding: 12px 28px;
-      background: var(--accent);
+      background: var(--accent-grad);
       border: none;
       border-radius: var(--radius);
       color: #fff;
@@ -983,8 +1045,8 @@
 
     .photo-upload-area:hover,
     .photo-upload-area.dragover {
-      border-color: rgba(255, 107, 53, .5);
-      background: rgba(255, 107, 53, .04);
+      border-color: rgba(59, 130, 246, .5);
+      background: rgba(59, 130, 246, .06);
     }
 
     .photo-upload-area input[type=file] {
@@ -1108,6 +1170,23 @@
       pointer-events: all;
     }
 
+    /* 表示中の写真をぼかして背景に敷く（アンビエント演出） */
+    .lightbox-backdrop {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(64px) brightness(0.45) saturate(1.2);
+      transform: scale(1.15);
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+    }
+
+    .lightbox.open .lightbox-backdrop {
+      opacity: 1;
+    }
+
     .lightbox-img {
       max-width: 95vw;
       max-height: 85vh;
@@ -1116,6 +1195,8 @@
       box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
       transform: scale(0.96);
       transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      z-index: 1;
     }
 
     .lightbox.open .lightbox-img {
@@ -1263,6 +1344,33 @@
       }
     }
 
+    /* ── SCROLL PROGRESS ── */
+    .scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-grad);
+      transform-origin: 0 0;
+      transform: scaleX(0);
+      z-index: 2500;
+      pointer-events: none;
+    }
+
+    /* ── SCROLL REVEAL（IntersectionObserverがis-visibleを付与） ── */
+    @media (prefers-reduced-motion: no-preference) {
+      .event-item {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+
+      .event-item.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     /* ── RESPONSIVE ── */
     @media(max-width:1024px) {
       :root {
@@ -1356,6 +1464,14 @@
 
       .search-input {
         width: 100%;
+        /* iOSのフォーカス時ズームを防ぐ（16px未満だと自動ズームされる） */
+        font-size: 16px;
+      }
+
+      .form-input,
+      .form-select,
+      .form-textarea {
+        font-size: 16px;
       }
 
       .filter-bar .filter-row:last-child {
@@ -1410,6 +1526,16 @@
         font-size: 18px;
       }
 
+      .photo-strip {
+        grid-template-columns: repeat(4, 1fr);
+        grid-auto-rows: calc((100vw - var(--pad) * 2 - 24px) / 4);
+      }
+
+      .year-watermark {
+        top: 48px;
+        right: 0;
+      }
+
       .row-actions {
         opacity: 1;
         position: absolute;
@@ -1461,6 +1587,8 @@
 
 <body>
 
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
   <div class="loading-screen" id="loadingScreen">
     <div class="loading-spinner"></div>
     <div class="loading-text">LOADING...</div>
@@ -1471,8 +1599,10 @@
       <div id="syncDot" class="sync-dot"></div>
       <span id="syncLabel">SYNCED</span>
     </div>
-    <video class="header-video" id="headerVideo" autoplay muted loop playsinline>
+    <video class="header-video" id="headerVideo" autoplay muted loop playsinline poster="top_poster.jpg" preload="auto">
       <source src="top_video.webm" type="video/webm">
+      <!-- Safari / iPhone用フォールバック（WebM非対応環境） -->
+      <source src="top_video.mp4" type="video/mp4">
     </video>
     <div class="header-overlay"></div>
     <div class="header-content">
@@ -1483,7 +1613,7 @@
         <div class="stat"><span class="stat-num" id="total-count">0</span><span class="stat-label">TOTAL EVENTS</span>
         </div>
         <div class="stat"><span class="stat-num" id="year-count">0</span><span class="stat-label">YEARS</span></div>
-        <div class="stat"><span class="stat-num">8</span><span class="stat-label">CATEGORIES</span></div>
+        <div class="stat"><span class="stat-num" id="cat-count">0</span><span class="stat-label">CATEGORIES</span></div>
       </div>
     </div>
    
@@ -1650,6 +1780,7 @@
 
   <!-- LIGHTBOX -->
   <div class="lightbox" id="lightbox" onclick="closeLightboxOnBg(event)">
+    <div class="lightbox-backdrop" id="lightboxBackdrop" aria-hidden="true"></div>
     <button class="lightbox-close" onclick="closeLightbox()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <line x1="18" y1="6" x2="6" y2="18" />
@@ -1681,11 +1812,7 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3JycXJrdHVwaHVoZWR4cGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzM1MTYsImV4cCI6MjA5MjQwOTUxNn0.lufn62lN7JXhka-DhtedZkfcaLXEoUkMWq_fWCTobfY';
     const STORAGE_BUCKET = 'photos';
     function getHdrs(extra = {}) {
-<<<<<<< HEAD
       return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...extra };
-=======
-  return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...extra };
->>>>>>> parent of 6011e7e (元に戻す)
     }
 
     async function sbGet(t, p = '') { const r = await fetch(`${SUPABASE_URL}/rest/v1/${t}?${p}`, { headers: getHdrs() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
@@ -1722,10 +1849,12 @@
     // リンクカードHTML生成（非同期でOGP取得後に差し替え）
     function buildLinkCard(url, evId) {
       if (!url) return '';
+      // http/https以外のURL（javascript:等）は表示しない
+      try { if (!/^https?:$/.test(new URL(url).protocol)) return ''; } catch { return ''; }
       const ytId = getYouTubeId(url);
       if (ytId) {
         const thumb = `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
-        return `<a class="link-card" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+        return `<a class="link-card" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
       <img class="link-card-thumb yt" src="${thumb}" alt="YouTube thumbnail" loading="lazy">
       <div class="link-card-info">
         <div class="link-card-host"><img class="link-card-favicon" src="https://www.youtube.com/favicon.ico" onerror="this.style.display='none'">YouTube</div>
@@ -1737,12 +1866,12 @@
       try {
         const u = new URL(url);
         const host = u.hostname.replace('www.', '');
-        const favicon = `https://www.google.com/s2/favicons?domain=${host}&sz=32`;
-        return `<a class="link-card" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+        const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`;
+        return `<a class="link-card" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
       <div class="link-card-thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px;">🔗</div>
       <div class="link-card-info">
-        <div class="link-card-host"><img class="link-card-favicon" src="${favicon}" onerror="this.style.display='none'">${host}</div>
-        <div class="link-card-title">${url}</div>
+        <div class="link-card-host"><img class="link-card-favicon" src="${esc(favicon)}" onerror="this.style.display='none'">${esc(host)}</div>
+        <div class="link-card-title">${esc(url)}</div>
       </div>
     </a>`;
       } catch { return ''; }
@@ -1777,8 +1906,7 @@
         label.textContent = '古い順';
         icon.innerHTML = '<path d="M12 19V5M5 12l7-7 7 7"/>';
       }
-      render();
-      applyFilters();
+      withViewTransition(() => { render(); applyFilters(); });
     }
 
     // ═══════════════════════════════
@@ -1815,6 +1943,8 @@
     // ═══════════════════════════════
     // RENDER
     // ═══════════════════════════════
+    // HTMLエスケープ（XSS対策）
+    function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
     function getMapUrl(p) { return p && p.trim() ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p)}` : null; }
     function formatDate(d) {
       if (!d) return '';
@@ -1836,28 +1966,32 @@
         group.className = 'year-group'; group.dataset.year = year;
         const isExpanded = document.getElementById('filterBar').classList.contains('expanded');
         const barH = document.getElementById('filterBar').offsetHeight || 72;
-        group.innerHTML = `<div class="year-divider" style="top: ${barH}px"><span class="year-label">${year}</span><div class="year-line"></div></div>`;
+        group.innerHTML = `<div class="year-watermark" aria-hidden="true">${year}</div><div class="year-divider" style="top: ${barH}px"><span class="year-label">${year}</span><div class="year-line"></div></div>`;
         byYear[year].forEach(ev => {
           const mapUrl = getMapUrl(ev.place);
+          const placeSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
           const placeHtml = ev.place
-            ? `<span class="event-place" ${mapUrl ? `onclick="window.open('${mapUrl}','_blank')" title="Googleマップで開く"` : ''}>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            ${ev.place}${mapUrl ? '<span class="map-link-label">↗</span>' : ''}
-          </span>`: '';
+            ? (mapUrl
+              ? `<a class="event-place" href="${esc(mapUrl)}" target="_blank" rel="noopener" title="Googleマップで開く">${placeSvg}${esc(ev.place)}<span class="map-link-label">↗</span></a>`
+              : `<span class="event-place">${placeSvg}${esc(ev.place)}</span>`)
+            : '';
           const memoHtml = ev.memo ? `<span class="event-memo">
           <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          ${ev.memo}
+          ${esc(ev.memo)}
         </span>`: '';
           const linkHtml = ev.link ? `<div class="link-wrapper">${buildLinkCard(ev.link, ev.id)}</div>` : '';
           if (ev.link && getYouTubeId(ev.link)) ytPending.push({ url: ev.link, id: ev.id });
           let photoHtml = '';
           if (ev.photos && ev.photos.length > 0) {
             photoHtml = '<div class="photo-strip">';
-            ev.photos.forEach((p, i) => { photoHtml += `<img class="photo-thumb" src="${photoUrl(p.storage_path)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/60?text=%3F'" alt="${p.file_name}" onclick="openLightbox(${ev.id},${i})" loading="lazy">`; });
+            // 注: Supabaseの画像変換(photoThumbUrl)は現プランでは無効のため原寸を使用
+            ev.photos.forEach((p, i) => { photoHtml += `<img class="photo-thumb" src="${photoUrl(p.storage_path)}" alt="${esc(p.file_name)}" onclick="openLightbox(${ev.id},${i})" loading="lazy">`; });
             photoHtml += '</div>';
           }
           const item = document.createElement('div');
           item.className = 'event-item'; item.dataset.cat = ev.cat; item.dataset.id = ev.id;
+          // View Transitions用の一意な名前（フィルター時にカードがスルッと移動する）
+          item.style.viewTransitionName = 'ev-' + ev.id;
           item.addEventListener('touchstart', handleItemTouchStart, { passive: true });
           item.addEventListener('touchmove', handleItemTouchMove, { passive: false });
           item.addEventListener('touchend', handleItemTouchEnd, { passive: true });
@@ -1867,7 +2001,7 @@
         <div class="event-date">${formatDate(ev.date)}</div>
         <div class="event-dot-col"><div class="event-dot"></div></div>
         <div class="event-content">
-          <div class="event-title-row"><span class="event-name">${ev.name}</span><span class="cat-tag">${ev.cat}</span></div>
+          <div class="event-title-row"><span class="event-name">${esc(ev.name)}</span><span class="cat-tag" data-cat="${esc(ev.cat)}">${esc(ev.cat)}</span></div>
           <div class="event-meta">${placeHtml}${memoHtml}</div>
           ${linkHtml}${photoHtml}
         </div>
@@ -1890,11 +2024,26 @@
       buildYearButtons();
     }
 
+    // 数字のカウントアップアニメーション
+    function tweenNum(el, to) {
+      const from = parseInt(el.textContent, 10) || 0;
+      if (from === to || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to; return; }
+      const start = performance.now(), dur = 700;
+      (function tick(now) {
+        const t = Math.min(1, (now - start) / dur);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(from + (to - from) * eased);
+        if (t < 1) requestAnimationFrame(tick);
+      })(start);
+    }
+
     function updateStats() {
       const vis = [...document.querySelectorAll('.event-item:not(.hidden)')];
-      document.getElementById('total-count').textContent = vis.length;
+      tweenNum(document.getElementById('total-count'), vis.length);
       const yrs = new Set(vis.map(el => events.find(e => e.id == el.dataset.id)?.date.split('-')[0]).filter(Boolean));
-      document.getElementById('year-count').textContent = yrs.size;
+      tweenNum(document.getElementById('year-count'), yrs.size);
+      const cats = new Set(vis.map(el => events.find(e => e.id == el.dataset.id)?.cat).filter(Boolean));
+      tweenNum(document.getElementById('cat-count'), cats.size);
     }
 
     // ═══════════════════════════════
@@ -1910,7 +2059,7 @@
     function highlight(text, q) {
       if (!q) return text;
       return text.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
-        '<mark style="background:rgba(255,107,53,.32);color:var(--text);border-radius:2px;padding:0 2px">$1</mark>');
+        '<mark style="background:rgba(59,130,246,.35);color:var(--text);border-radius:2px;padding:0 2px">$1</mark>');
     }
     function applyFilters() {
       currentSearch = (document.getElementById('searchInput').value || '').trim();
@@ -1922,7 +2071,7 @@
         const show = isVisible(ev);
         item.classList.toggle('hidden', !show);
         const nameEl = item.querySelector('.event-name');
-        if (nameEl) nameEl.innerHTML = show && q ? highlight(ev.name, q) : ev.name;
+        if (nameEl) nameEl.innerHTML = show && q ? highlight(esc(ev.name), q) : esc(ev.name);
         if (show) cnt++;
       });
       document.querySelectorAll('.year-group').forEach(g => {
@@ -1933,10 +2082,18 @@
     }
     function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); }
 
+    // View Transitions API対応ブラウザではフィルター切り替えをアニメーションさせる
+    function withViewTransition(fn) {
+      if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.startViewTransition(fn);
+      } else { fn(); }
+    }
+
     document.querySelectorAll('.filter-btn[data-cat]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.filter-btn[data-cat]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active'); currentFilter = btn.dataset.cat; applyFilters();
+        btn.classList.add('active'); currentFilter = btn.dataset.cat;
+        withViewTransition(() => applyFilters());
       });
     });
     function buildYearButtons() {
@@ -1951,7 +2108,8 @@
         btn.className = 'filter-btn'; btn.dataset.year = y; btn.textContent = y;
         btn.addEventListener('click', () => {
           document.querySelectorAll('[data-year]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active'); currentYear = y; applyFilters();
+          btn.classList.add('active'); currentYear = y;
+          withViewTransition(() => applyFilters());
         });
         yearRow.appendChild(btn);
       });
@@ -1959,7 +2117,8 @@
     document.querySelector('[data-year="all"]').addEventListener('click', () => {
       document.querySelectorAll('[data-year]').forEach(b => b.classList.remove('active'));
       document.querySelector('[data-year="all"]').classList.add('active');
-      currentYear = 'all'; applyFilters();
+      currentYear = 'all';
+      withViewTransition(() => applyFilters());
     });
 
     // ═══════════════════════════════
@@ -2102,6 +2261,7 @@
 
     function renderLightbox(ev) {
       const p = ev.photos[lbIndex];
+      document.getElementById('lightboxBackdrop').style.backgroundImage = `url("${photoUrl(p.storage_path)}")`;
       const img = document.getElementById('lightboxImg');
       img.style.opacity = '0';
       setTimeout(() => {
@@ -2207,7 +2367,7 @@
           await caches.delete(name);
         }
       }
-      location.reload(true);
+      location.reload();
     }
 
     /* ─── スワイプで編集・削除ボタンを表示（row-actions だけ移動） ─── */
@@ -2257,10 +2417,6 @@
     }, { passive: true });
 
 
-<<<<<<< HEAD
-=======
-    
->>>>>>> parent of 6011e7e (元に戻す)
     function toggleFilters() {
       document.getElementById('filterBar').classList.toggle('expanded');
       // 高さは ResizeObserver が検知して updateStickyTop を呼ぶ
@@ -2292,36 +2448,25 @@
     });
     window.addEventListener('resize', updateStickyTop);
 
+    // ═══════════════════════════════
+    // SCROLL PROGRESS
+    // ═══════════════════════════════
+    const progressEl = document.getElementById('scrollProgress');
+    let progressTicking = false;
+    function updateProgress() {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      progressEl.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+      progressTicking = false;
+    }
+    window.addEventListener('scroll', () => {
+      if (!progressTicking) { progressTicking = true; requestAnimationFrame(updateProgress); }
+    }, { passive: true });
 
-<<<<<<< HEAD
+
     window.addEventListener('DOMContentLoaded', () => {
       loadAll();
     });
   </script>
-
-=======
-    // 変更後
-window.addEventListener('DOMContentLoaded', () => {
-  loadAll();
-});
-  </script>
-
-  <!-- LOGIN MODAL -->
-  <!-- <div class="modal-overlay" id="loginModal">
-    <div class="modal" style="text-align:center; max-width:360px;">
-      <h2
-        style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:.06em;color:var(--text);margin-bottom:8px;">
-        LOGIN</h2>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:24px;">共通パスワードを入力してください</p>
-      <div class="form-row">
-        <input type="password" id="loginPass" class="form-input" placeholder="Password"
-          style="text-align:center; font-size:16px; letter-spacing:0.2em;" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <button class="btn-primary" style="width:100%; margin-top:8px;" onclick="doLogin()" id="loginBtn">ENTER</button>
-      <div id="loginError" style="color:#ff5555; font-size:11px; margin-top:12px; display:none;">パスワードが間違っています</div>
-    </div>
-  </div> -->
->>>>>>> parent of 6011e7e (元に戻す)
 
 </body>
 

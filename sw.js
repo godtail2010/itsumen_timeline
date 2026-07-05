@@ -1,10 +1,11 @@
-const CACHE_NAME = 'itsumen-timeline-v3';
+const CACHE_NAME = 'itsumen-timeline-v4';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icon.svg',
-  './top_title.png'
+  './top_title.png',
+  './top_poster.jpg'
 ];
 
 // インストール：新しいキャッシュを作成
