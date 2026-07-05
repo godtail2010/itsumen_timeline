@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>いつメン年表</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f1115">
@@ -393,6 +393,9 @@
     }
 
     .filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       padding: 6px 14px;
       border-radius: var(--radius-sm);
       border: 1px solid transparent;
@@ -654,6 +657,16 @@
       color: rgb(var(--cat-color));
       background: rgba(var(--cat-color), 0.12);
       border-color: rgba(var(--cat-color), 0.3);
+    }
+
+    /* カテゴリボタンの色ドット */
+    .filter-btn[data-cat]:not([data-cat="all"])::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgb(var(--cat-color));
+      flex-shrink: 0;
     }
 
     .event-meta {
@@ -1452,7 +1465,8 @@
         z-index: 2000;
       }
 
-      .filter-bar .filter-row:nth-child(-n+2) {
+      /* 年フィルターのみトグル内に格納（カテゴリチップは常時表示） */
+      .filter-bar .filter-row:nth-child(2) {
         display: none;
       }
 
@@ -1460,7 +1474,7 @@
         display: flex;
       }
 
-      .filter-bar.expanded .filter-row:nth-child(-n+2) {
+      .filter-bar.expanded .filter-row:nth-child(2) {
         display: flex;
         animation: fadeDown 0.3s ease both;
       }
@@ -1599,6 +1613,135 @@
         max-height: 80px;
       }
     }
+
+    /* ── MOBILE POLISH ── */
+    @media(max-width:768px) {
+
+      /* カテゴリチップ: 横スクロールで常時表示 */
+      .filter-bar .filter-row:first-child {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        margin: 0 calc(var(--pad) * -1);
+        padding: 2px var(--pad);
+      }
+
+      .filter-bar .filter-row:first-child::-webkit-scrollbar {
+        display: none;
+      }
+
+      .filter-label {
+        display: none;
+      }
+
+      .filter-btn {
+        flex-shrink: 0;
+        border-radius: 999px;
+        border-color: var(--border);
+        background: var(--surface);
+      }
+
+      .search-input {
+        border-radius: 999px;
+      }
+
+      /* イベントのカード化 + カテゴリ色の左アクセント */
+      .event-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .event-item[data-cat] {
+        border-left: 3px solid rgba(var(--cat-color, 156, 163, 175), 0.6);
+      }
+
+      .row-actions {
+        background: var(--surface);
+      }
+
+      .photo-strip {
+        /* カードのpadding/border分を差し引いたセルサイズ */
+        grid-auto-rows: calc((100vw - 100px) / 4);
+      }
+
+      /* 年見出しをすりガラスに */
+      .year-divider {
+        background: rgba(15, 17, 21, 0.75);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+
+      .year-group {
+        margin-bottom: 32px;
+      }
+
+      /* モーダルをボトムシート化 */
+      .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+      }
+
+      .modal {
+        max-width: none;
+        border-radius: 20px 20px 0 0;
+        max-height: 90vh;
+        max-height: 92dvh;
+        padding: 32px 20px calc(28px + env(safe-area-inset-bottom));
+        transform: translateY(48px);
+      }
+
+      /* ボトムシートのつまみ */
+      .modal::before {
+        content: '';
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border-strong);
+      }
+
+      .modal-overlay.open .modal {
+        transform: translateY(0);
+      }
+
+      .delete-modal {
+        margin: 0 16px calc(20px + env(safe-area-inset-bottom));
+        border-radius: 16px;
+      }
+
+      /* セーフエリア対応（ホームバー回避） */
+      .fab {
+        bottom: calc(24px + env(safe-area-inset-bottom));
+        right: 20px;
+      }
+
+      .toast {
+        bottom: calc(32px + env(safe-area-inset-bottom));
+        width: max-content;
+        max-width: calc(100vw - 48px);
+      }
+    }
+
+    @keyframes fadeDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 
@@ -1661,7 +1804,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="6 9 12 15 18 9" />
         </svg>
-        <span>絞り込み</span>
+        <span>年で絞り込み</span>
       </button>
       <button class="filter-btn" id="sortBtn" onclick="toggleSort()" style="margin-left:auto;">
         <svg id="sortIcon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
