@@ -551,15 +551,9 @@
       margin: 0 auto;
     }
 
-    /* デスクトップ用の線 */
+    /* カード化に伴い縦の連結線は非表示 */
     .timeline::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: calc(var(--pad) + 160px);
-      width: 1px;
-      background: var(--border);
+      display: none;
     }
 
     .year-group {
@@ -622,13 +616,21 @@
       display: grid;
       grid-template-columns: 160px 64px 1fr;
       align-items: start;
-      padding: 32px var(--pad);
-      margin: 0 calc(var(--pad) * -1);
-      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 14px;
+      border-radius: 16px;
+      /* スマホと同じくダークなカード背景 */
+      background: var(--surface);
+      border: 1px solid var(--border);
       transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
       /* Time Machine: 下端を軸に奥へ倒れ込む */
       transform-origin: 50% 100%;
       backface-visibility: hidden;
+    }
+
+    /* カテゴリ色の左アクセント */
+    .event-item[data-cat] {
+      border-left: 3px solid rgba(var(--cat-color, 156, 163, 175), 0.6);
     }
 
     /* スクロール追従中はトランジションを切って遅延をなくす */
@@ -637,7 +639,8 @@
     }
 
     .event-item:hover {
-      background: rgba(255, 255, 255, 0.02);
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
       box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.14), 0 12px 40px rgba(0, 0, 0, 0.35);
     }
 
