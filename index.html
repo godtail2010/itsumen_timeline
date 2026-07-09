@@ -69,6 +69,14 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* ── WebGL星空背景（思い出の宇宙） ── */
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+    }
+
     body::before {
       content: '';
       position: fixed;
@@ -253,7 +261,7 @@
       position: fixed;
       bottom: 32px;
       right: 32px;
-      z-index: 150;
+      z-index: 200;
       width: 56px;
       height: 56px;
       border-radius: 14px;
@@ -328,12 +336,11 @@
       }
     }
 
-    /* ── FILTER BAR ── */
+    /* ── FILTER BAR ──
+       非スティッキー: 上部でのみ表示し、下にスクロールすると流れて消える */
     .filter-bar {
-      position: sticky;
-      position: -webkit-sticky;
-      top: 0;
-      z-index: 2000;
+      position: relative;
+      z-index: 90;
       padding: 16px var(--pad);
       background: rgba(15, 17, 21, 0.9);
       backdrop-filter: blur(32px);
@@ -343,7 +350,60 @@
       flex-direction: column;
       gap: 16px;
       transition: padding 0.3s ease;
-      will-change: transform, top;
+    }
+
+    /* タップで呼び出したとき: 画面最上部にスライドイン表示 */
+    .filter-bar.revealed {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 300;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+      animation: filterSlideDown 0.3s cubic-bezier(0.2, 0, 0, 1) both;
+    }
+
+    @keyframes filterSlideDown {
+      from {
+        transform: translateY(-100%);
+        opacity: 0.4;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* 絞り込み＆検索を呼び出すフローティングボタン */
+    .filter-fab {
+      position: fixed;
+      left: 32px;
+      bottom: 32px;
+      z-index: 200;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-hover);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      transition: all 0.35s var(--ease-spring);
+    }
+
+    .filter-fab:hover {
+      transform: translateY(-2px) scale(1.05);
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+
+    .filter-fab svg {
+      width: 22px;
+      height: 22px;
     }
 
     .filter-row {
@@ -528,14 +588,14 @@
       display: flex;
       align-items: center;
       gap: 24px;
-      padding: 16px 0;
+      padding: 24px 0 20px;
       position: sticky;
       position: -webkit-sticky;
-      top: 72px;
-      /* filter-bar の下に固定 */
+      top: 0;
+      /* フィルターバーが流れて消えるため画面最上部に固定。背景は透明 */
       z-index: 100;
-      background: var(--bg);
-      margin-bottom: 16px;
+      background: transparent;
+      margin-bottom: 8px;
     }
 
     .year-label {
@@ -546,6 +606,8 @@
       min-width: 160px;
       text-align: right;
       line-height: 1;
+      /* 背景が透明なので、写真等の上でも読めるよう影を付ける */
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7), 0 0 4px rgba(0, 0, 0, 0.5);
     }
 
     .year-line {
@@ -564,6 +626,14 @@
       margin: 0 calc(var(--pad) * -1);
       border-radius: 12px;
       transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
+      /* Time Machine: 下端を軸に奥へ倒れ込む */
+      transform-origin: 50% 100%;
+      backface-visibility: hidden;
+    }
+
+    /* スクロール追従中はトランジションを切って遅延をなくす */
+    .event-item.tm-active {
+      transition: none;
     }
 
     .event-item:hover {
@@ -1445,10 +1515,10 @@
       }
 
       .year-divider {
-        top: 60px;
+        top: 0;
         padding: 12px 0;
-        background: var(--bg);
-        border-bottom: 1px solid var(--border);
+        background: transparent;
+        border-bottom: none;
         margin: 0;
       }
 
@@ -1459,10 +1529,8 @@
       .filter-bar {
         padding: 12px var(--pad);
         gap: 8px;
-        position: sticky;
-        position: -webkit-sticky;
-        top: 0;
-        z-index: 2000;
+        position: relative;
+        z-index: 90;
       }
 
       /* 年フィルターのみトグル内に格納（カテゴリチップは常時表示） */
@@ -1670,11 +1738,13 @@
         grid-auto-rows: calc((100vw - 100px) / 4);
       }
 
-      /* 年見出しをすりガラスに */
+      /* 年見出し: 背景へ溶けるスクリム（バー感・下線を消す） */
       .year-divider {
-        background: rgba(15, 17, 21, 0.75);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        padding: 16px 0 14px;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-bottom: none;
       }
 
       .year-group {
@@ -1742,10 +1812,240 @@
         transform: translateY(0);
       }
     }
+
+    /* ══════════ TIME MACHINE MODE ══════════ */
+    .tm-toggle {
+      position: fixed;
+      right: 32px;
+      bottom: 100px;
+      z-index: 200;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-hover);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      transition: all 0.35s var(--ease-spring);
+    }
+
+    .tm-toggle:hover {
+      transform: translateY(-2px) scale(1.05);
+      border-color: var(--accent2);
+      background: var(--surface);
+      color: #fff;
+    }
+
+    .tm-toggle svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .tm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 5001;
+      background: radial-gradient(130% 100% at 50% 42%, rgba(6, 8, 13, 0) 0%, rgba(5, 7, 12, 0.72) 100%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .tm-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .tm-stage {
+      position: absolute;
+      inset: 0;
+      perspective: 1100px;
+      perspective-origin: 50% 44%;
+      transform-style: preserve-3d;
+      overflow: hidden;
+    }
+
+    .tm-card {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 320px;
+      height: 424px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+      transform: translate(-50%, -50%);
+      transform-origin: 50% 50%;
+      backface-visibility: hidden;
+      will-change: transform;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+    }
+
+    /* 奥行きの暗幕（filterを使うとpreserve-3dが壊れるため子要素で表現） */
+    .tm-card-dim {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .tm-card-media {
+      flex: 1;
+      min-height: 0;
+      background-size: cover;
+      background-position: center;
+      background-color: var(--surface-hover);
+    }
+
+    .tm-card-media.fallback {
+      background-color: var(--surface-hover);
+      background-image: linear-gradient(155deg, rgba(var(--cat-color, 156, 163, 175), 0.6), rgba(var(--cat-color, 156, 163, 175), 0.16));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    .tm-card-body {
+      padding: 16px 20px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .tm-card-cat {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 2px 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      color: rgb(var(--cat-color, 156, 163, 175));
+      background: rgba(var(--cat-color, 156, 163, 175), 0.12);
+      border: 1px solid rgba(var(--cat-color, 156, 163, 175), 0.3);
+    }
+
+    .tm-card-name {
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .tm-card-date {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+    }
+
+    .tm-card-place {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tm-close {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 5002;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-strong);
+      color: #fff;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .tm-close:hover {
+      background: rgba(255, 255, 255, 0.16);
+      transform: scale(1.08);
+    }
+
+    .tm-close svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .tm-hud {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 36px;
+      z-index: 5002;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .tm-year {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      background: linear-gradient(110deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .tm-hint {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .tm-toggle {
+        right: 20px;
+        bottom: calc(92px + env(safe-area-inset-bottom));
+      }
+
+      .filter-fab {
+        left: 20px;
+        bottom: calc(24px + env(safe-area-inset-bottom));
+      }
+
+      .tm-card {
+        width: min(74vw, 300px);
+        height: min(62vh, 404px);
+      }
+
+      .tm-hud {
+        bottom: calc(28px + env(safe-area-inset-bottom));
+      }
+
+      .tm-year {
+        font-size: 40px;
+      }
+    }
   </style>
 </head>
 
 <body>
+
+  <canvas id="bgCanvas" aria-hidden="true"></canvas>
 
   <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
@@ -1856,6 +2156,22 @@
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   </button>
+
+  <button class="filter-fab" onclick="toggleFilterReveal(event)" title="絞り込み・検索" aria-label="絞り込み・検索">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="7" y1="12" x2="17" y2="12" />
+      <line x1="10" y1="18" x2="14" y2="18" />
+    </svg>
+  </button>
+
+  <button class="tm-toggle" onclick="openTimeMachine()" title="タイムマシン表示" aria-label="タイムマシン表示">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <polyline points="3 3 3 8 8 8" />
+      <polyline points="12 7 12 12 15 14" />
+    </svg>
+  </button>
   <div class="toast" id="toast"></div>
 
   <!-- EDIT MODAL -->
@@ -1961,6 +2277,21 @@
     <div class="lightbox-info">
       <div class="lightbox-title" id="lightboxTitle"></div>
       <div class="lightbox-counter" id="lightboxCounter"></div>
+    </div>
+  </div>
+
+  <!-- TIME MACHINE -->
+  <div class="tm-overlay" id="tmOverlay" aria-hidden="true">
+    <div class="tm-stage" id="tmStage"></div>
+    <button class="tm-close" onclick="closeTimeMachine()" aria-label="閉じる">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+    <div class="tm-hud">
+      <div class="tm-year" id="tmYear"></div>
+      <div class="tm-hint">スクロール / ↑↓ で移動 · Esc で戻る</div>
     </div>
   </div>
 
@@ -2124,9 +2455,7 @@
       sortedYears.forEach(year => {
         const group = document.createElement('div');
         group.className = 'year-group'; group.dataset.year = year;
-        const isExpanded = document.getElementById('filterBar').classList.contains('expanded');
-        const barH = document.getElementById('filterBar').offsetHeight || 72;
-        group.innerHTML = `<div class="year-watermark" aria-hidden="true">${year}</div><div class="year-divider" style="top: ${barH}px"><span class="year-label">${year}</span><div class="year-line"></div></div>`;
+        group.innerHTML = `<div class="year-watermark" aria-hidden="true">${year}</div><div class="year-divider" style="top: 0px"><span class="year-label">${year}</span><div class="year-line"></div></div>`;
         byYear[year].forEach(ev => {
           const mapUrl = getMapUrl(ev.place);
           const placeSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
@@ -2182,6 +2511,7 @@
       // YouTubeタイトルを非同期で取得
       ytPending.forEach(({ url, id }) => fetchYouTubeTitle(url, id));
       buildYearButtons();
+      tmMeas = []; // レイアウトが変わったので位置キャッシュを無効化
     }
 
     // 数字のカウントアップアニメーション
@@ -2239,6 +2569,12 @@
       });
       document.getElementById('noResults').classList.toggle('show', cnt === 0);
       updateStats();
+      // 星空背景へ同期（Three.jsモジュールが非同期読込のため、未準備なら保留）
+      window.__pendingStarSync = [events, currentFilter, currentYear];
+      if (window.__syncStars) window.__syncStars(events, currentFilter, currentYear);
+      // フィルターでレイアウトが変わるので位置キャッシュを無効化して再計算
+      tmMeas = [];
+      if (window.requestAnimationFrame) requestAnimationFrame(() => updateTimeMachine());
     }
     function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); }
 
@@ -2611,15 +2947,29 @@
 
     function toggleFilters() {
       document.getElementById('filterBar').classList.toggle('expanded');
-      // 高さは ResizeObserver が検知して updateStickyTop を呼ぶ
+      tmMeas = []; // 高さが変わるので位置キャッシュを無効化
     }
 
-    function updateStickyTop() {
+    // 絞り込み・検索バーをタップで呼び出す／隠す（非スティッキー化に伴う再表示手段）
+    function toggleFilterReveal(e) {
+      if (e) e.stopPropagation();
+      document.getElementById('filterBar').classList.toggle('revealed');
+    }
+    // バーの外側をタップしたら閉じる
+    document.addEventListener('click', e => {
       const bar = document.getElementById('filterBar');
-      const h = bar.getBoundingClientRect().height;
+      if (!bar.classList.contains('revealed')) return;
+      if (bar.contains(e.target) || e.target.closest('.filter-fab')) return;
+      bar.classList.remove('revealed');
+    });
+
+    // フィルターバーは非スティッキー（スクロールで流れる）になったため、
+    // 年号見出しは常に画面最上部(0)に固定する
+    function updateStickyTop() {
       document.querySelectorAll('.year-divider').forEach(el => {
-        el.style.top = Math.floor(h) + 'px';
+        el.style.top = '0px';
       });
+      tmMeas = [];
     }
 
     // 高度な追従制御: ResizeObserver
@@ -2638,7 +2988,9 @@
         video.play().catch(e => console.warn("Video play blocked:", e));
       }
     });
-    window.addEventListener('resize', updateStickyTop);
+    window.addEventListener('resize', () => { updateStickyTop(); tmMeas = []; updateTimeMachine(); });
+    // 写真読込でカード高さが変わったら位置キャッシュを無効化（load はバブルしないので capture）
+    document.getElementById('timeline').addEventListener('load', () => { tmMeas = []; }, true);
 
     // ═══════════════════════════════
     // SCROLL PROGRESS
@@ -2648,16 +3000,422 @@
     function updateProgress() {
       const max = document.documentElement.scrollHeight - window.innerHeight;
       progressEl.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+      updateTimeMachine();
       progressTicking = false;
     }
     window.addEventListener('scroll', () => {
       if (!progressTicking) { progressTicking = true; requestAnimationFrame(updateProgress); }
     }, { passive: true });
 
+    // ═══════════════════════════════
+    // TIME MACHINE — 奥から思い出がせり上がって現れる
+    // 焦点ラインより下（=これから読む、画面下から入ってくる思い出）ほど
+    // 星のトンネルの奥に沈んでおり、スクロールで手前・焦点へ迫るにつれ
+    // 大きくくっきり立ち上がってくる。
+    // ═══════════════════════════════
+    const tmEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // 各カードの絶対Y位置をキャッシュし、スクロール毎のgetBoundingClientRect(レイアウト再計算)を回避
+    let tmMeas = [];
+    function tmMeasure() {
+      const y = window.scrollY;
+      tmMeas = [];
+      document.querySelectorAll('.event-item').forEach(el => {
+        if (el.classList.contains('hidden')) return;
+        const r = el.getBoundingClientRect();
+        if (r.height === 0) return;
+        tmMeas.push({ el, top: r.top + y, h: r.height });
+      });
+    }
+    function tmReset(el) { el.style.transform = ''; el.style.opacity = ''; el.classList.remove('tm-active'); el.dataset.tm = '0'; }
+    function updateTimeMachine() {
+      if (!tmEnabled) return;
+      if (!tmMeas.length) tmMeasure();
+      const vh = window.innerHeight;
+      const y = window.scrollY;
+      const focal = vh * 0.58;        // 焦点。ここより上（通過済み）が奥へ遡る
+      const vanish = 100;             // 年号見出しの下端付近で消えきる
+      const span = Math.max(120, focal - vanish);
+      for (let i = 0; i < tmMeas.length; i++) {
+        const m = tmMeas[i];
+        const top = m.top - y;        // ビューポート内Y（レイアウト再計算なし）
+        if (top > vh + 60) { if (m.el.dataset.tm === '1') tmReset(m.el); continue; }
+        const center = top + m.h / 2;
+        if (center < focal) {
+          // 焦点より上＝奥へ倒れ込みながら遠ざかる
+          const a = Math.max(0, Math.min(1, (focal - center) / span));
+          const e = a * a;
+          m.el.style.transform = `perspective(1200px) translateZ(${(-e * 440).toFixed(1)}px) rotateX(${(e * 13).toFixed(2)}deg)`;
+          m.el.style.opacity = (1 - a).toFixed(3);
+          m.el.classList.add('tm-active');
+          m.el.dataset.tm = '1';
+        } else if (m.el.dataset.tm === '1') {
+          tmReset(m.el);
+        }
+      }
+    }
+
+
+    // ═══════════════════════════════
+    // TIME MACHINE MODE — 奥へ連なるカードを手前へ繰り出す没入表示
+    // ═══════════════════════════════
+    let tmEvents = [], tmCards = [], tmCurrent = 0, tmTarget = 0, tmRAF = null, tmActive = false;
+    const TM_MAXV = 7; // 奥に見せる枚数
+    const tmClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+    function openTimeMachine() {
+      tmEvents = [...events].filter(e => e && e.date).sort((a, b) => b.date.localeCompare(a.date)); // 新しい→古い
+      const stage = document.getElementById('tmStage');
+      stage.innerHTML = '';
+      tmCards = tmEvents.map(ev => {
+        const card = document.createElement('div');
+        card.className = 'tm-card';
+        card.dataset.cat = ev.cat || 'その他';
+        const photo = (ev.photos && ev.photos[0]) ? photoUrl(ev.photos[0].storage_path) : null;
+        const media = photo
+          ? `<div class="tm-card-media" style="background-image:url('${photo}')"></div>`
+          : `<div class="tm-card-media fallback">📷</div>`;
+        card.innerHTML = `${media}
+          <div class="tm-card-body">
+            <div class="tm-card-cat" data-cat="${esc(ev.cat)}">${esc(ev.cat)}</div>
+            <div class="tm-card-name">${esc(ev.name)}</div>
+            <div class="tm-card-date">${esc((ev.date || '').replace(/-/g, ' / '))}</div>
+            ${ev.place ? `<div class="tm-card-place">📍 ${esc(ev.place)}</div>` : ''}
+          </div>
+          <div class="tm-card-dim"></div>`;
+        card.addEventListener('click', () => { const i = tmCards.indexOf(card); if (i >= 0) tmTarget = i; });
+        stage.appendChild(card);
+        return card;
+      });
+      tmCurrent = tmTarget = 0;
+      tmActive = true;
+      document.getElementById('tmOverlay').classList.add('open');
+      document.getElementById('tmOverlay').setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      const c = document.getElementById('bgCanvas'); if (c) c.style.zIndex = '5000'; // 星空を前面へ
+      tmRender();
+      if (!tmRAF) tmLoop();
+    }
+
+    function closeTimeMachine() {
+      tmActive = false;
+      document.getElementById('tmOverlay').classList.remove('open');
+      document.getElementById('tmOverlay').setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      const c = document.getElementById('bgCanvas'); if (c) c.style.zIndex = ''; // 背景へ戻す
+      if (tmRAF) { cancelAnimationFrame(tmRAF); tmRAF = null; }
+    }
+
+    function tmSetCard(card, d) {
+      const z = -d * 230;
+      const y = -d * 58;
+      const rot = tmClamp(-d * 5, -7, 7);
+      // カード本体は不透明のまま（opacity<1やfilterはpreserve-3dをフラット化するので避ける）
+      // 手前へ抜ける瞬間(d<0)だけは本体をフェード
+      const op = d < 0 ? Math.max(0, 1 + d * 1.6) : 1;
+      // 奥行きの暗さ＋最奥のフェードは暗幕レイヤーで表現
+      let dim = d > 0 ? Math.min(0.62, d * 0.1) : 0;
+      if (d > TM_MAXV - 1) dim = Math.min(1, dim + (d - (TM_MAXV - 1)) * 0.9); // 最奥は闇へ溶ける
+      card.style.transform = `translate(-50%,-50%) translateZ(${z.toFixed(1)}px) translateY(${y.toFixed(1)}px) rotateX(${rot.toFixed(2)}deg)`;
+      card.style.opacity = op.toFixed(3);
+      card.style.zIndex = String(10000 - Math.round(d * 100)); // 手前ほど大（フラット化時の前後保証）
+      const dimEl = card.lastElementChild;
+      if (dimEl) dimEl.style.opacity = dim.toFixed(3);
+    }
+
+    function tmRender() {
+      for (let i = 0; i < tmCards.length; i++) {
+        const d = i - tmCurrent;
+        if (d < -2 || d > TM_MAXV + 2) {
+          if (tmCards[i].style.display !== 'none') tmCards[i].style.display = 'none';
+          continue;
+        }
+        if (tmCards[i].style.display === 'none') tmCards[i].style.display = '';
+        tmSetCard(tmCards[i], d);
+      }
+      const ev = tmEvents[tmClamp(Math.round(tmCurrent), 0, tmEvents.length - 1)];
+      if (ev) document.getElementById('tmYear').textContent = ev.date.split('-')[0];
+    }
+
+    function tmLoop() {
+      tmRAF = requestAnimationFrame(tmLoop);
+      const diff = tmTarget - tmCurrent;
+      if (Math.abs(diff) > 0.001) {
+        tmCurrent += diff * 0.12;
+        tmRender();
+      }
+    }
+
+    // 入力: ホイール / キー / スワイプ
+    (function bindTimeMachineInput() {
+      const ov = document.getElementById('tmOverlay');
+      ov.addEventListener('wheel', e => {
+        if (!tmActive) return;
+        e.preventDefault();
+        tmTarget = tmClamp(tmTarget + e.deltaY * 0.01, 0, tmEvents.length - 1);
+      }, { passive: false });
+      document.addEventListener('keydown', e => {
+        if (!tmActive) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); tmTarget = tmClamp(Math.round(tmTarget) + 1, 0, tmEvents.length - 1); }
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); tmTarget = tmClamp(Math.round(tmTarget) - 1, 0, tmEvents.length - 1); }
+        else if (e.key === 'Escape') closeTimeMachine();
+      });
+      let ty = 0;
+      ov.addEventListener('touchstart', e => { if (tmActive) ty = e.touches[0].clientY; }, { passive: true });
+      ov.addEventListener('touchmove', e => {
+        if (!tmActive) return;
+        const dy = ty - e.touches[0].clientY;
+        tmTarget = tmClamp(tmTarget + dy * 0.02, 0, tmEvents.length - 1);
+        ty = e.touches[0].clientY;
+        e.preventDefault();
+      }, { passive: false });
+    })();
 
     window.addEventListener('DOMContentLoaded', () => {
       loadAll();
     });
+  </script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    // ═══════════════════════════════════════════════
+    // 思い出の宇宙 — WebGL星空背景
+    // 各イベントを1つの星として実データから生成し、
+    // カテゴリ色で発光。スクロールで時代を遡ると色温度が暖色化する。
+    // 3dcg-demo(LUMINA) の固定背景レイヤー技術がベース。
+    // ═══════════════════════════════════════════════
+    const canvas = document.getElementById('bgCanvas');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    // WebGL非対応・省電力設定では静かに諦めて既存の見た目のまま
+    let THREE;
+    try {
+      if (reduceMotion) throw new Error('reduced-motion');
+      const testGl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      if (!testGl) throw new Error('no-webgl');
+      THREE = await import('three');
+    } catch (e) {
+      canvas.style.display = 'none';
+    }
+
+    if (THREE) init();
+
+    function init() {
+      // カテゴリ色（CSSの --cat-color と一致させる）
+      const CAT_RGB = {
+        '飲み会': [245, 158, 11], 'スノボ': [56, 189, 248], 'キャンプ': [34, 197, 94],
+        '旅行': [167, 139, 250], '結婚式': [244, 114, 182], 'フェス': [251, 146, 60],
+        'ライブ': [248, 113, 113], 'その他': [156, 163, 175],
+      };
+      const DEFAULT_RGB = [156, 163, 175];
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'low-power' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.set(0, 0, 24);
+
+      // ── 塵パーティクル（奥行き用の微光） ──
+      const DUST = isMobile ? 500 : 1600;
+      const dustPos = new Float32Array(DUST * 3);
+      const dustSeed = new Float32Array(DUST);
+      for (let i = 0; i < DUST; i++) {
+        const r = 10 + Math.random() * 60;
+        const th = Math.random() * Math.PI * 2;
+        const ph = Math.acos(2 * Math.random() - 1);
+        dustPos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+        dustPos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+        dustPos[i * 3 + 2] = r * Math.cos(ph) - 20;
+        dustSeed[i] = Math.random();
+      }
+      const dustGeo = new THREE.BufferGeometry();
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+      dustGeo.setAttribute('aSeed', new THREE.BufferAttribute(dustSeed, 1));
+      const dustMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+        vertexShader: `
+          uniform float uTime; attribute float aSeed; varying float vS;
+          void main(){
+            vS = aSeed;
+            vec3 p = position;
+            p.y += sin(uTime*0.2 + aSeed*40.0)*0.8;
+            vec4 mv = modelViewMatrix * vec4(p,1.0);
+            gl_PointSize = (0.6 + aSeed*1.4) * (60.0 / -mv.z);
+            gl_Position = projectionMatrix * mv;
+          }`,
+        fragmentShader: `
+          varying float vS;
+          void main(){
+            float d = length(gl_PointCoord - 0.5);
+            if(d>0.5) discard;
+            float a = smoothstep(0.5,0.0,d);
+            gl_FragColor = vec4(vec3(0.6,0.7,0.9), a*0.28);
+          }`,
+      });
+      scene.add(new THREE.Points(dustGeo, dustMat));
+
+      // ── イベントの星（データ駆動、後から差し替え） ──
+      const starUniforms = { uTime: { value: 0 } };
+      const starMat = new THREE.ShaderMaterial({
+        uniforms: starUniforms,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+        vertexShader: `
+          uniform float uTime;
+          attribute vec3 aColor;
+          attribute float aSeed;
+          attribute float aActive;   // 1=フィルター対象 / 0.18=対象外
+          attribute float aSize;
+          varying vec3 vColor; varying float vActive;
+          void main(){
+            vColor = aColor; vActive = aActive;
+            vec3 p = position;
+            // ゆっくり明滅する漂い
+            p.x += cos(uTime*0.25 + aSeed*30.0)*0.5;
+            p.y += sin(uTime*0.3  + aSeed*40.0)*0.5;
+            vec4 mv = modelViewMatrix * vec4(p,1.0);
+            float twinkle = 0.75 + 0.25*sin(uTime*1.5 + aSeed*60.0);
+            gl_PointSize = aSize * twinkle * mix(0.5,1.0,aActive) * (150.0 / -mv.z);
+            gl_Position = projectionMatrix * mv;
+          }`,
+        fragmentShader: `
+          varying vec3 vColor; varying float vActive;
+          void main(){
+            float d = length(gl_PointCoord - 0.5);
+            if(d>0.5) discard;
+            float core = smoothstep(0.5,0.0,d);
+            float glow = pow(core, 1.6);
+            float alpha = mix(0.18, 1.0, vActive);
+            gl_FragColor = vec4(vColor * (0.6 + glow*0.9), glow * alpha);
+          }`,
+      });
+      let starPoints = null;
+      let currentIds = '';
+
+      // 螺旋銀河状に配置: 古い→新しい で外周へ渦を巻く「時のスパイラル」
+      function buildStars(events) {
+        const sorted = [...events].filter(e => e && e.date).sort((a, b) => a.date.localeCompare(b.date));
+        const N = sorted.length;
+        if (N === 0) return;
+        const pos = new Float32Array(N * 3);
+        const col = new Float32Array(N * 3);
+        const seed = new Float32Array(N);
+        const size = new Float32Array(N);
+        const TURNS = 3.2;
+        sorted.forEach((ev, j) => {
+          const t = N > 1 ? j / (N - 1) : 0;
+          const ang = t * TURNS * Math.PI * 2;
+          const rad = 3 + t * 20;
+          const jitter = () => (Math.random() - 0.5);
+          pos[j * 3]     = Math.cos(ang) * rad + jitter() * 1.5;
+          pos[j * 3 + 1] = (t - 0.5) * 10 + jitter() * 2.2;
+          pos[j * 3 + 2] = Math.sin(ang) * rad - 14 + jitter() * 1.5;
+          const rgb = CAT_RGB[ev.cat] || DEFAULT_RGB;
+          col[j * 3] = rgb[0] / 255; col[j * 3 + 1] = rgb[1] / 255; col[j * 3 + 2] = rgb[2] / 255;
+          seed[j] = Math.random();
+          // 写真が多い思い出ほど大きく輝く
+          size[j] = 6 + Math.min(6, (ev.photos ? ev.photos.length : 0)) * 1.6;
+        });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+        g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+        g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+        g.setAttribute('aActive', new THREE.BufferAttribute(new Float32Array(N).fill(1), 1));
+        g._sorted = sorted;
+        if (starPoints) { scene.remove(starPoints); starPoints.geometry.dispose(); }
+        starPoints = new THREE.Points(g, starMat);
+        scene.add(starPoints);
+      }
+
+      // フィルターに応じて星の明滅（対象外は暗く）
+      function applyStarFilter(filter, year) {
+        if (!starPoints) return;
+        const sorted = starPoints.geometry._sorted;
+        const active = starPoints.geometry.getAttribute('aActive');
+        sorted.forEach((ev, j) => {
+          const catOk = !filter || filter === 'all' || ev.cat === filter;
+          const yearOk = !year || year === 'all' || (ev.date || '').startsWith(year);
+          active.array[j] = (catOk && yearOk) ? 1 : 0.18;
+        });
+        active.needsUpdate = true;
+      }
+
+      // 外部（クラシックスクリプト）からの同期窓口
+      window.__syncStars = function (events, filter, year) {
+        if (!events || !events.length) return;
+        const ids = events.map(e => e.id).join(',');
+        if (ids !== currentIds) { buildStars(events); currentIds = ids; }
+        applyStarFilter(filter, year);
+      };
+
+      // ── インタラクション ──
+      const mouse = { x: 0, y: 0 };
+      window.addEventListener('pointermove', (e) => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      }, { passive: true });
+
+      let scrollP = 0;
+      function updateScroll() {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        scrollP = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+      }
+      window.addEventListener('scroll', updateScroll, { passive: true });
+      updateScroll();
+
+      // ── レンダーループ ──
+      const clock = new THREE.Clock();
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const clearColor = new THREE.Color();
+      let paused = false;
+      document.addEventListener('visibilitychange', () => { paused = document.hidden; });
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if (paused) return;
+        const t = clock.getElapsedTime();
+        starUniforms.uTime.value = t;
+        dustMat.uniforms.uTime.value = t;
+
+        // カメラ: 常時ゆっくり周回 + マウス視差 + スクロールで奥へ潜る
+        const orbit = t * 0.04;
+        const targetX = Math.sin(orbit) * 3 + mouse.x * 2.2;
+        const targetY = mouse.y * 1.6 + scrollP * 2;
+        camera.position.x = lerp(camera.position.x, targetX, 0.03);
+        camera.position.y = lerp(camera.position.y, targetY, 0.03);
+        camera.position.z = lerp(camera.position.z, 24 - scrollP * 8, 0.03);
+        camera.lookAt(0, 0, -8);
+
+        if (starPoints) starPoints.rotation.y = t * 0.02;
+
+        // スクロール = 時代を遡る旅。過去に向かうほど背景を暖色へ。
+        // 現在(上/青系 #0f1115) → 過去(下/深い赤茶) へ色温度ドリフト。
+        clearColor.setRGB(lerp(0.059, 0.13, scrollP), lerp(0.067, 0.055, scrollP), lerp(0.082, 0.05, scrollP));
+        renderer.setClearColor(clearColor, 1);
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // 既にデータが読めていれば即同期（loadAll完了後の取りこぼし防止）
+      if (window.__pendingStarSync) { window.__syncStars(...window.__pendingStarSync); window.__pendingStarSync = null; }
+    }
   </script>
 
 </body>
