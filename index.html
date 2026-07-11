@@ -151,7 +151,8 @@
       object-fit: cover;
       z-index: 0;
       opacity: 0.5;
-      filter: blur(2px) brightness(0.9);
+      /* 動画への常時blurはGPU負荷が高いため廃止（overlayで十分暗いので見た目差はほぼ無い） */
+      filter: brightness(0.9);
     }
 
     .header-overlay {
@@ -1546,6 +1547,10 @@
         gap: 8px;
         position: relative;
         z-index: 90;
+        /* モバイルGPUに重いbackdrop-filterを止め、ほぼ不透明の単色に */
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(15, 17, 21, 0.97);
       }
 
       /* 年フィルターのみトグル内に格納（カテゴリチップは常時表示） */
@@ -2531,7 +2536,16 @@
       return path;
     }
     function photoUrl(p) { return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${p}`; }
-    function photoThumbUrl(p) { return `${SUPABASE_URL}/storage/v1/render/image/public/${STORAGE_BUCKET}/${p}?width=200&height=200&resize=cover`; }
+    // 自前サムネイル: 同フォルダに thumb_◯◯.jpg を置く方式（Supabase画像変換はプラン外のため）
+    function photoThumbPath(p) { const i = p.lastIndexOf('/'); return p.slice(0, i + 1) + 'thumb_' + p.slice(i + 1).replace(/\.[^.]+$/, '.jpg'); }
+    function photoThumbUrl(p) { return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${photoThumbPath(p)}`; }
+    // 指定パスへ直接アップロード（サムネイル保存用）
+    async function uploadPhotoTo(path, file) {
+      const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`, {
+        method: 'POST', headers: getHdrs({ 'Content-Type': file.type, 'x-upsert': 'true' }), body: file
+      });
+      if (!r.ok) throw new Error(await r.text());
+    }
     async function deleteStoragePhoto(path) {
       const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}`, {
         method: 'DELETE', headers: getHdrs(),
@@ -2685,8 +2699,8 @@
           let photoHtml = '';
           if (ev.photos && ev.photos.length > 0) {
             photoHtml = '<div class="photo-strip">';
-            // 注: Supabaseの画像変換(photoThumbUrl)は現プランでは無効のため原寸を使用
-            ev.photos.forEach((p, i) => { photoHtml += `<img class="photo-thumb" src="${photoUrl(p.storage_path)}" alt="${esc(p.file_name)}" onclick="openLightbox(${ev.id},${i})" loading="lazy">`; });
+            // 一覧はサムネイル優先。未生成の古い写真は onerror で原寸へフォールバック
+            ev.photos.forEach((p, i) => { photoHtml += `<img class="photo-thumb" src="${photoThumbUrl(p.storage_path)}" onerror="this.onerror=null;this.src='${photoUrl(p.storage_path)}'" alt="${esc(p.file_name)}" onclick="openLightbox(${ev.id},${i})" loading="lazy">`; });
             photoHtml += '</div>';
           }
           const item = document.createElement('div');
@@ -2812,9 +2826,9 @@
       });
       if (!best) { box.style.display = 'none'; return; }
       const { ev, dist, years } = best;
-      const photo = (ev.photos && ev.photos[0]) ? photoUrl(ev.photos[0].storage_path) : null;
+      const pPath = (ev.photos && ev.photos[0]) ? ev.photos[0].storage_path : null;
       box.innerHTML = `
-        ${photo ? `<img class="memory-flash-thumb" src="${photo}" alt="" loading="lazy">` : '<div class="memory-flash-thumb" style="display:flex;align-items:center;justify-content:center;font-size:22px">🎞</div>'}
+        ${pPath ? `<img class="memory-flash-thumb" src="${photoThumbUrl(pPath)}" onerror="this.onerror=null;this.src='${photoUrl(pPath)}'" alt="" loading="lazy">` : '<div class="memory-flash-thumb" style="display:flex;align-items:center;justify-content:center;font-size:22px">🎞</div>'}
         <div style="min-width:0">
           <div class="memory-flash-label">Memory Flashback · ${years}年前の${dist === 0 ? '今日' : 'この頃'}</div>
           <div class="memory-flash-name">${esc(ev.name)}</div>
@@ -3010,6 +3024,11 @@
           try {
             const path = await uploadPhoto(p.file, evId);
             await sbPost('photos', { event_id: evId, storage_path: path, file_name: p.name });
+            // 一覧表示用サムネイル(400px)も生成して保存（失敗しても原寸フォールバックで表示可）
+            try {
+              const th = await compressImage(p.file, 400, 0.75, true);
+              await uploadPhotoTo(photoThumbPath(path), th);
+            } catch (te) { console.warn('thumb fail', te); }
           } catch (ue) {
             console.error('upload fail', ue);
             showToast('⚠ 一部の写真のアップロードに失敗しました');
@@ -3065,25 +3084,25 @@
       else preview.style.display = 'none';
     }
     // アップロード前にブラウザ側で長辺1600pxに縮小＋JPEG圧縮（容量・表示を軽く）
-    function compressImage(file, maxDim = 1600, quality = 0.82) {
+    function compressImage(file, maxDim = 1600, quality = 0.82, force = false) {
       return new Promise(resolve => {
-        // GIF(アニメ)や画像以外はそのまま
-        if (!file.type.startsWith('image/') || file.type === 'image/gif') return resolve(file);
+        // GIF(アニメ)や画像以外はそのまま（force時=サムネ生成はGIFも先頭フレームで作る）
+        if (!file.type.startsWith('image/') || (!force && file.type === 'image/gif')) return resolve(file);
         const url = URL.createObjectURL(file);
         const img = new Image();
         img.onload = () => {
           URL.revokeObjectURL(url);
           let { width, height } = img;
           const scale = Math.min(1, maxDim / Math.max(width, height));
-          // 既に小さく軽ければ変換しない
-          if (scale === 1 && file.size < 500 * 1024) return resolve(file);
+          // 既に小さく軽ければ変換しない（force時は必ずJPEG化）
+          if (!force && scale === 1 && file.size < 500 * 1024) return resolve(file);
           width = Math.round(width * scale); height = Math.round(height * scale);
           const canvas = document.createElement('canvas');
           canvas.width = width; canvas.height = height;
           canvas.getContext('2d').drawImage(img, 0, 0, width, height);
           canvas.toBlob(blob => {
-            if (!blob || blob.size >= file.size) return resolve(file); // 逆に大きければ原本
-            const name = file.name.replace(/\.(png|webp|heic|heif|bmp)$/i, '.jpg');
+            if (!blob || (!force && blob.size >= file.size)) return resolve(file); // 逆に大きければ原本
+            const name = file.name.replace(/\.(png|webp|heic|heif|bmp|gif)$/i, '.jpg');
             resolve(new File([blob], name, { type: 'image/jpeg' }));
           }, 'image/jpeg', quality);
         };
@@ -3091,6 +3110,44 @@
         img.src = url;
       });
     }
+    // ═══════════════════════════════
+    // 既存写真のサムネイル一括生成（1回だけの移行処理）
+    // コンソールで generateMissingThumbs() を実行。原本は変更せず thumb_ を追加するのみ。
+    // ═══════════════════════════════
+    async function generateMissingThumbs() {
+      const all = await sbGet('photos');
+      let made = 0, skipped = 0, failed = 0;
+      for (let i = 0; i < all.length; i++) {
+        const p = all[i];
+        const tp = photoThumbPath(p.storage_path);
+        try {
+          // 既にあればスキップ
+          const head = await fetch(photoUrl(tp), { method: 'HEAD' });
+          if (head.ok) { skipped++; continue; }
+          const img = await new Promise((res, rej) => {
+            const im = new Image();
+            im.crossOrigin = 'anonymous';
+            im.onload = () => res(im);
+            im.onerror = () => rej(new Error('load fail'));
+            im.src = photoUrl(p.storage_path);
+          });
+          const scale = Math.min(1, 400 / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.75));
+          if (!blob) throw new Error('encode fail');
+          await uploadPhotoTo(tp, new File([blob], 'thumb.jpg', { type: 'image/jpeg' }));
+          made++;
+        } catch (e) { console.warn('thumb migration fail:', p.storage_path, e.message); failed++; }
+        if ((i + 1) % 20 === 0) console.log(`thumbs: ${i + 1}/${all.length} (作成${made} 済${skipped} 失敗${failed})`);
+      }
+      const result = { total: all.length, made, skipped, failed };
+      console.log('サムネイル生成完了', result);
+      return result;
+    }
+    window.generateMissingThumbs = generateMissingThumbs;
+
     async function handlePhotoFiles(files) {
       for (const original of [...files]) {
         if (!original.type.startsWith('image/')) continue;
@@ -3386,7 +3443,10 @@
     // 星のトンネルの奥に沈んでおり、スクロールで手前・焦点へ迫るにつれ
     // 大きくくっきり立ち上がってくる。
     // ═══════════════════════════════
-    const tmEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // モバイルは毎フレームのスタイル書き換え＋3Dレイヤーが重いため、
+    // 通常表示のスクロール3D演出はデスクトップ限定にする（リビールは両方で有効）
+    const tmEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      && window.matchMedia('(min-width: 769px)').matches;
     // 各カードの絶対Y位置をキャッシュし、スクロール毎のgetBoundingClientRect(レイアウト再計算)を回避
     let tmMeas = [];
     function tmMeasure() {
@@ -3443,9 +3503,9 @@
         const card = document.createElement('div');
         card.className = 'tm-card';
         card.dataset.cat = ev.cat || 'その他';
-        const photo = (ev.photos && ev.photos[0]) ? photoUrl(ev.photos[0].storage_path) : null;
-        const media = photo
-          ? `<div class="tm-card-media" style="background-image:url('${photo}')"></div>`
+        const photoPath = (ev.photos && ev.photos[0]) ? ev.photos[0].storage_path : null;
+        const media = photoPath
+          ? `<div class="tm-card-media"></div>`
           : `<div class="tm-card-media fallback">📷</div>`;
         card.innerHTML = `${media}
           <div class="tm-card-body">
@@ -3466,6 +3526,15 @@
             tmTarget = i; // 奥のカードは手前へ呼び寄せる
           }
         });
+        // 写真はサムネイル優先、未生成なら原寸へフォールバック
+        if (photoPath) {
+          const mediaEl = card.querySelector('.tm-card-media');
+          const thumb = photoThumbUrl(photoPath), full = photoUrl(photoPath);
+          const probe = new Image();
+          probe.onload = () => mediaEl.style.backgroundImage = `url('${thumb}')`;
+          probe.onerror = () => mediaEl.style.backgroundImage = `url('${full}')`;
+          probe.src = thumb;
+        }
         stage.appendChild(card);
         return card;
       });
@@ -3601,7 +3670,7 @@
 
       const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, alpha: true, powerPreference: 'low-power' });
       // モバイルは解像度倍率を抑えて描画負荷を軽減
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1 : 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
 
       const scene = new THREE.Scene();
@@ -3609,7 +3678,7 @@
       camera.position.set(0, 0, 24);
 
       // ── 塵パーティクル（奥行き用の微光） ──
-      const DUST = isMobile ? 300 : 1600;
+      const DUST = isMobile ? 200 : 1600;
       const dustPos = new Float32Array(DUST * 3);
       const dustSeed = new Float32Array(DUST);
       for (let i = 0; i < DUST; i++) {
