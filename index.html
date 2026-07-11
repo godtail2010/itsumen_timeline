@@ -1866,10 +1866,69 @@
       transform: scale(1.15);
     }
 
+    /* モバイル: iOS連絡先の索引風スクラブレール（ドットをなぞって年ジャンプ） */
     @media (max-width: 768px) {
       .year-minimap {
-        display: none;
+        right: 0;
+        gap: 0;
+        padding: 8px 6px;
+        /* レール上ではページスクロールさせずスクラブ操作に割り当てる */
+        touch-action: none;
       }
+
+      .ym-item {
+        /* 年号テキストは隠してドット化（タッチはレール全体で受ける） */
+        font-size: 0;
+        padding: 5px 9px;
+        background: none;
+      }
+
+      .ym-item::before {
+        content: '';
+        display: block;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        opacity: 0.55;
+        transition: all 0.2s;
+      }
+
+      .ym-item.active {
+        background: none;
+        transform: none;
+      }
+
+      .ym-item.active::before {
+        background: var(--accent);
+        opacity: 1;
+        transform: scale(1.7);
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+      }
+    }
+
+    /* スクラブ中に指の横へ出る年バブル */
+    .ym-bubble {
+      position: fixed;
+      right: 36px;
+      z-index: 400;
+      padding: 8px 16px;
+      border-radius: 12px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border-strong);
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      transform: translateY(-50%);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: none;
+      pointer-events: none;
+    }
+
+    .ym-bubble.show {
+      display: block;
     }
 
     /* ── 「◯年前の今日」メモリーフラッシュ ── */
@@ -2301,6 +2360,7 @@
   </button>
 
   <nav class="year-minimap" id="yearMinimap" aria-label="年へジャンプ"></nav>
+  <div class="ym-bubble" id="ymBubble" aria-hidden="true"></div>
 
   <button class="filter-fab" onclick="toggleFilterReveal(event)" title="絞り込み・検索" aria-label="絞り込み・検索">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2681,6 +2741,37 @@
       if (!g || g.style.display === 'none') return;
       window.scrollTo({ top: g.getBoundingClientRect().top + window.scrollY + 2, behavior: 'smooth' });
     });
+
+    // モバイル: レールを指でなぞって年へスクラブ（iOS連絡先の索引と同じ操作感）
+    (function bindMinimapScrub() {
+      const mm = document.getElementById('yearMinimap');
+      const bubble = document.getElementById('ymBubble');
+      let lastYear = null;
+      function scrubTo(clientY) {
+        let bestBtn = null, bestDist = Infinity;
+        mm.querySelectorAll('.ym-item').forEach(b => {
+          const r = b.getBoundingClientRect();
+          const d = Math.abs(r.top + r.height / 2 - clientY);
+          if (d < bestDist) { bestDist = d; bestBtn = b; }
+        });
+        if (!bestBtn) return;
+        const y = bestBtn.dataset.year;
+        bubble.textContent = y;
+        bubble.style.top = clientY + 'px';
+        bubble.classList.add('show');
+        if (y !== lastYear) {
+          lastYear = y;
+          const g = document.querySelector(`.year-group[data-year="${y}"]`);
+          // スクラブ中は追従性を優先して即時スクロール
+          if (g && g.style.display !== 'none') window.scrollTo(0, g.getBoundingClientRect().top + window.scrollY + 2);
+        }
+      }
+      mm.addEventListener('touchstart', e => scrubTo(e.touches[0].clientY), { passive: true });
+      mm.addEventListener('touchmove', e => { e.preventDefault(); scrubTo(e.touches[0].clientY); }, { passive: false });
+      const end = () => { bubble.classList.remove('show'); lastYear = null; };
+      mm.addEventListener('touchend', end);
+      mm.addEventListener('touchcancel', end);
+    })();
 
     // 年号見出しの固定状態（縮小表示）とミニマップの現在年ハイライト
     function updateYearUI() {
