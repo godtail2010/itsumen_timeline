@@ -3694,16 +3694,16 @@
       dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
       dustGeo.setAttribute('aSeed', new THREE.BufferAttribute(dustSeed, 1));
       const dustMat = new THREE.ShaderMaterial({
-        uniforms: { uTime: { value: 0 } },
+        uniforms: { uTime: { value: 0 }, uPx: { value: renderer.getPixelRatio() * 0.5 } },
         transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
         vertexShader: `
-          uniform float uTime; attribute float aSeed; varying float vS;
+          uniform float uTime; uniform float uPx; attribute float aSeed; varying float vS;
           void main(){
             vS = aSeed;
             vec3 p = position;
             p.y += sin(uTime*0.2 + aSeed*40.0)*0.8;
             vec4 mv = modelViewMatrix * vec4(p,1.0);
-            gl_PointSize = (0.6 + aSeed*1.4) * (60.0 / -mv.z);
+            gl_PointSize = (0.6 + aSeed*1.4) * (60.0 / -mv.z) * uPx;
             gl_Position = projectionMatrix * mv;
           }`,
         fragmentShader: `
@@ -3718,12 +3718,14 @@
       scene.add(new THREE.Points(dustGeo, dustMat));
 
       // ── イベントの星（データ駆動、後から差し替え） ──
-      const starUniforms = { uTime: { value: 0 } };
+      // uPx: 解像度倍率(DPR)が変わっても星の見かけサイズを一定に保つ補正
+      const starUniforms = { uTime: { value: 0 }, uPx: { value: renderer.getPixelRatio() * 0.5 } };
       const starMat = new THREE.ShaderMaterial({
         uniforms: starUniforms,
         transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
         vertexShader: `
           uniform float uTime;
+          uniform float uPx;
           attribute vec3 aColor;
           attribute float aSeed;
           attribute float aActive;   // 1=フィルター対象 / 0.18=対象外
@@ -3737,7 +3739,7 @@
             p.y += sin(uTime*0.3  + aSeed*40.0)*0.5;
             vec4 mv = modelViewMatrix * vec4(p,1.0);
             float twinkle = 0.75 + 0.25*sin(uTime*1.5 + aSeed*60.0);
-            gl_PointSize = aSize * twinkle * mix(0.5,1.0,aActive) * (150.0 / -mv.z);
+            gl_PointSize = aSize * twinkle * mix(0.5,1.0,aActive) * (150.0 / -mv.z) * uPx;
             gl_Position = projectionMatrix * mv;
           }`,
         fragmentShader: `
