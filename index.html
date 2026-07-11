@@ -547,7 +547,8 @@
     .timeline {
       position: relative;
       padding: 64px var(--pad) 120px;
-      max-width: 1200px;
+      /* 左列廃止に合わせて読みやすい幅に */
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -597,11 +598,18 @@
       font-weight: 800;
       letter-spacing: -0.04em;
       color: var(--text);
-      min-width: 160px;
-      text-align: right;
+      min-width: auto;
+      text-align: left;
       line-height: 1;
       /* 背景が透明なので、写真等の上でも読めるよう影を付ける */
       text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7), 0 0 4px rgba(0, 0, 0, 0.5);
+      /* スティッキー固定中はスッと縮む（transformなのでレイアウトは動かない） */
+      transform-origin: left center;
+      transition: transform 0.25s ease;
+    }
+
+    .year-divider.stuck .year-label {
+      transform: scale(0.44);
     }
 
     .year-line {
@@ -614,7 +622,9 @@
     .event-item {
       position: relative;
       display: grid;
-      grid-template-columns: 160px 64px 1fr;
+      /* カード化に伴い日付・ドットの左列を廃止（日付はカード上部に表示） */
+      grid-template-columns: 1fr;
+      gap: 10px;
       align-items: start;
       padding: 28px 32px;
       margin-bottom: 14px;
@@ -649,20 +659,17 @@
     }
 
     .event-date {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text-muted);
-      text-align: right;
-      padding-right: 32px;
-      padding-top: 6px;
+      text-align: left;
+      padding: 0;
       font-variant-numeric: tabular-nums;
     }
 
+    /* 縦の連結線の廃止に伴いドット列も非表示 */
     .event-dot-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding-top: 11px;
+      display: none;
     }
 
     .event-dot {
@@ -681,7 +688,7 @@
     }
 
     .event-content {
-      padding-left: 12px;
+      padding-left: 0;
     }
 
     .event-title-row {
@@ -1525,6 +1532,11 @@
         margin: 0;
       }
 
+      /* モバイルは元が小さいので縮小率を緩める */
+      .year-divider.stuck .year-label {
+        transform: scale(0.7);
+      }
+
       .year-line {
         display: none;
       }
@@ -1816,6 +1828,133 @@
       }
     }
 
+    /* ── 年ジャンプ・ミニマップ（右端） ── */
+    .year-minimap {
+      position: fixed;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 150;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ym-item {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: right;
+      transition: all 0.2s;
+    }
+
+    .ym-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .ym-item.active {
+      color: #fff;
+      background: var(--accent-soft);
+      transform: scale(1.15);
+    }
+
+    @media (max-width: 768px) {
+      .year-minimap {
+        display: none;
+      }
+    }
+
+    /* ── 「◯年前の今日」メモリーフラッシュ ── */
+    .memory-flash {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      max-width: 720px;
+      margin: -36px auto 28px;
+      padding: 14px 20px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-strong);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      cursor: pointer;
+      transition: all 0.35s var(--ease-spring);
+    }
+
+    .memory-flash:hover {
+      transform: translateY(-2px);
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .memory-flash-thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+
+    .memory-flash-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .memory-flash-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .memory-flash-date {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 768px) {
+      .memory-flash {
+        margin: -20px 16px 20px;
+      }
+    }
+
+    /* ジャンプ先のハイライト */
+    .event-item.jump-flash {
+      animation: jumpFlash 2.2s ease both;
+    }
+
+    @keyframes jumpFlash {
+
+      0%,
+      55% {
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.75), 0 0 44px rgba(139, 92, 246, 0.3);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+      }
+    }
+
     /* ══════════ TIME MACHINE MODE ══════════ */
     .tm-toggle {
       position: fixed;
@@ -2082,7 +2221,8 @@
    
   </header>
 
-
+  <!-- ◯年前の今日（データがある時だけJSが表示） -->
+  <section class="memory-flash" id="memoryFlash" style="display:none" title="この思い出へジャンプ"></section>
 
   <div class="filter-bar" id="filterBar">
     <div class="filter-row">
@@ -2159,6 +2299,8 @@
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   </button>
+
+  <nav class="year-minimap" id="yearMinimap" aria-label="年へジャンプ"></nav>
 
   <button class="filter-fab" onclick="toggleFilterReveal(event)" title="絞り込み・検索" aria-label="絞り込み・検索">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2425,6 +2567,7 @@
         render();
         applyFilters();
         updateStats();
+        buildMemoryFlash();
       } catch (e) {
         console.error('Load error:', e);
         showToast('⚠ データの読み込みに失敗しました');
@@ -2520,7 +2663,96 @@
       // YouTubeタイトルを非同期で取得
       ytPending.forEach(({ url, id }) => fetchYouTubeTitle(url, id));
       buildYearButtons();
+      buildYearMinimap(sortedYears);
       tmMeas = []; // レイアウトが変わったので位置キャッシュを無効化
+    }
+
+    // ═══════════════════════════════
+    // 年ジャンプ・ミニマップ
+    // ═══════════════════════════════
+    function buildYearMinimap(years) {
+      const mm = document.getElementById('yearMinimap');
+      mm.innerHTML = years.map(y => `<button class="ym-item" data-year="${y}">${y}</button>`).join('');
+    }
+    document.getElementById('yearMinimap').addEventListener('click', e => {
+      const btn = e.target.closest('.ym-item');
+      if (!btn) return;
+      const g = document.querySelector(`.year-group[data-year="${btn.dataset.year}"]`);
+      if (!g || g.style.display === 'none') return;
+      window.scrollTo({ top: g.getBoundingClientRect().top + window.scrollY + 2, behavior: 'smooth' });
+    });
+
+    // 年号見出しの固定状態（縮小表示）とミニマップの現在年ハイライト
+    function updateYearUI() {
+      let activeYear = null;
+      document.querySelectorAll('.year-group').forEach(g => {
+        if (g.style.display === 'none') return;
+        const d = g.querySelector('.year-divider');
+        if (!d) return;
+        const gr = g.getBoundingClientRect();
+        const stuck = d.getBoundingClientRect().top <= 1 && gr.bottom > 80;
+        d.classList.toggle('stuck', stuck);
+        if (!activeYear && gr.top <= 140 && gr.bottom > 140) activeYear = g.dataset.year;
+      });
+      document.querySelectorAll('#yearMinimap .ym-item').forEach(it =>
+        it.classList.toggle('active', it.dataset.year === activeYear));
+    }
+
+    // ═══════════════════════════════
+    // 「◯年前の今日」メモリーフラッシュ
+    // ═══════════════════════════════
+    function buildMemoryFlash() {
+      const box = document.getElementById('memoryFlash');
+      const today = new Date();
+      const cy = today.getFullYear();
+      const dayOfYear = d => { const dt = new Date(d); return Math.floor((dt - new Date(dt.getFullYear(), 0, 0)) / 864e5); };
+      const td = dayOfYear(today);
+      let best = null;
+      events.forEach(ev => {
+        if (!ev.date) return;
+        const y = +ev.date.slice(0, 4);
+        if (y >= cy) return; // 過去の年だけ
+        let dist = Math.abs(dayOfYear(ev.date) - td);
+        dist = Math.min(dist, 365 - dist);
+        if (dist > 7) return; // 今日±7日以内
+        // 日付が近いほど優先、同率なら写真が多い・新しい年を優先
+        const score = dist * 1000 - (ev.photos ? ev.photos.length : 0) * 10 - y * 0.01;
+        if (!best || score < best.score) best = { ev, dist, years: cy - y, score };
+      });
+      if (!best) { box.style.display = 'none'; return; }
+      const { ev, dist, years } = best;
+      const photo = (ev.photos && ev.photos[0]) ? photoUrl(ev.photos[0].storage_path) : null;
+      box.innerHTML = `
+        ${photo ? `<img class="memory-flash-thumb" src="${photo}" alt="" loading="lazy">` : '<div class="memory-flash-thumb" style="display:flex;align-items:center;justify-content:center;font-size:22px">🎞</div>'}
+        <div style="min-width:0">
+          <div class="memory-flash-label">Memory Flashback · ${years}年前の${dist === 0 ? '今日' : 'この頃'}</div>
+          <div class="memory-flash-name">${esc(ev.name)}</div>
+          <div class="memory-flash-date">${esc((ev.date || '').replace(/-/g, ' / '))}${ev.place ? ' · 📍 ' + esc(ev.place) : ''}</div>
+        </div>`;
+      box.style.display = 'flex';
+      box.onclick = () => jumpToEvent(ev.id);
+      tmMeas = []; // レイアウトが変わるので位置キャッシュを無効化
+    }
+
+    // 年表内の特定イベントへスクロールしてハイライト
+    function jumpToEvent(id) {
+      let el = document.querySelector(`.event-item[data-id="${id}"]`);
+      if (!el) return;
+      if (el.classList.contains('hidden')) {
+        // フィルターで隠れている場合は全解除してから
+        currentFilter = 'all'; currentYear = 'all';
+        document.querySelectorAll('.filter-btn[data-cat]').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+        document.querySelectorAll('[data-year]').forEach(b => b.classList.toggle('active', b.dataset.year === 'all'));
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+      }
+      // 3D演出のフェード域(画面上部)を避け、焦点のすぐ下に着地させる
+      const top = el.getBoundingClientRect().top + window.scrollY - Math.round(window.innerHeight * 0.44);
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      el.classList.remove('jump-flash');
+      void el.offsetWidth;
+      el.classList.add('jump-flash');
+      setTimeout(() => el.classList.remove('jump-flash'), 2400);
     }
 
     // 数字のカウントアップアニメーション
@@ -2583,7 +2815,7 @@
       if (window.__syncStars) window.__syncStars(events, currentFilter, currentYear);
       // フィルターでレイアウトが変わるので位置キャッシュを無効化して再計算
       tmMeas = [];
-      if (window.requestAnimationFrame) requestAnimationFrame(() => updateTimeMachine());
+      if (window.requestAnimationFrame) requestAnimationFrame(() => { updateTimeMachine(); updateYearUI(); });
     }
     function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); }
 
@@ -3050,6 +3282,7 @@
       const max = document.documentElement.scrollHeight - window.innerHeight;
       progressEl.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
       updateTimeMachine();
+      updateYearUI();
       progressTicking = false;
     }
     window.addEventListener('scroll', () => {
@@ -3131,7 +3364,17 @@
             ${ev.place ? `<div class="tm-card-place">📍 ${esc(ev.place)}</div>` : ''}
           </div>
           <div class="tm-card-dim"></div>`;
-        card.addEventListener('click', () => { const i = tmCards.indexOf(card); if (i >= 0) tmTarget = i; });
+        card.addEventListener('click', () => {
+          const i = tmCards.indexOf(card);
+          if (i < 0) return;
+          if (Math.abs(i - tmTarget) < 0.5) {
+            // 前面カードをタップ → タイムマシンを閉じて年表のそのイベントへ
+            closeTimeMachine();
+            jumpToEvent(ev.id);
+          } else {
+            tmTarget = i; // 奥のカードは手前へ呼び寄せる
+          }
+        });
         stage.appendChild(card);
         return card;
       });
