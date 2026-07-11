@@ -2250,6 +2250,10 @@
       <div style="font-size:26px;margin-bottom:8px">🗑</div>
       <div style="font-size:15px;font-weight:700;color:var(--text)" id="deleteTitle"></div>
       <p>このイベントを削除しますか？<br>この操作は元に戻せません。</p>
+      <input type="password" id="deletePin" class="form-input" placeholder="削除パスワード"
+        style="text-align:center;letter-spacing:0.2em;margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')confirmDelete()">
+      <div id="deletePinError" style="color:#ff5555;font-size:12px;margin-bottom:12px;display:none">パスワードが違います</div>
       <div style="display:flex;gap:10px;justify-content:center">
         <button class="btn-cancel" onclick="closeModal('deleteModal')">キャンセル</button>
         <button class="btn-danger" onclick="confirmDelete()">削除する</button>
@@ -2305,6 +2309,8 @@
     const SUPABASE_URL = 'https://rrwrrqrktuphuhedxpif.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyd3JycXJrdHVwaHVoZWR4cGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzM1MTYsImV4cCI6MjA5MjQwOTUxNn0.lufn62lN7JXhka-DhtedZkfcaLXEoUkMWq_fWCTobfY';
     const STORAGE_BUCKET = 'photos';
+    // 削除パスワード（誤削除・いたずら対策のクライアント側ゲート）。★必ず変更してください
+    const DELETE_PIN = '0000';
     function getHdrs(extra = {}) {
       return { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation', ...extra };
     }
@@ -2700,8 +2706,23 @@
     // ═══════════════════════════════
     // DELETE
     // ═══════════════════════════════
-    function openDeleteModal(id) { const ev = events.find(e => e.id === id); if (!ev) return; deleteTargetId = id; document.getElementById('deleteTitle').textContent = ev.name; openModal('deleteModal'); }
+    function openDeleteModal(id) {
+      const ev = events.find(e => e.id === id); if (!ev) return;
+      deleteTargetId = id;
+      document.getElementById('deleteTitle').textContent = ev.name;
+      const pin = document.getElementById('deletePin');
+      pin.value = ''; document.getElementById('deletePinError').style.display = 'none';
+      openModal('deleteModal');
+    }
     async function confirmDelete() {
+      // 誤削除・いたずら対策のパスワードゲート（クライアント側の抑止）
+      const pin = document.getElementById('deletePin');
+      if (pin.value !== DELETE_PIN) {
+        document.getElementById('deletePinError').style.display = 'block';
+        pin.focus();
+        return;
+      }
+      document.getElementById('deletePinError').style.display = 'none';
       setSyncState('syncing');
       try {
         const ev = events.find(e => e.id === deleteTargetId);
@@ -2720,13 +2741,41 @@
       if (place) { link.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`; preview.style.display = 'flex'; }
       else preview.style.display = 'none';
     }
-    function handlePhotoFiles(files) {
-      [...files].forEach(file => {
-        if (!file.type.startsWith('image/')) return;
+    // アップロード前にブラウザ側で長辺1600pxに縮小＋JPEG圧縮（容量・表示を軽く）
+    function compressImage(file, maxDim = 1600, quality = 0.82) {
+      return new Promise(resolve => {
+        // GIF(アニメ)や画像以外はそのまま
+        if (!file.type.startsWith('image/') || file.type === 'image/gif') return resolve(file);
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          let { width, height } = img;
+          const scale = Math.min(1, maxDim / Math.max(width, height));
+          // 既に小さく軽ければ変換しない
+          if (scale === 1 && file.size < 500 * 1024) return resolve(file);
+          width = Math.round(width * scale); height = Math.round(height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          canvas.toBlob(blob => {
+            if (!blob || blob.size >= file.size) return resolve(file); // 逆に大きければ原本
+            const name = file.name.replace(/\.(png|webp|heic|heif|bmp)$/i, '.jpg');
+            resolve(new File([blob], name, { type: 'image/jpeg' }));
+          }, 'image/jpeg', quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); }; // 変換不可(HEIC等)は原本
+        img.src = url;
+      });
+    }
+    async function handlePhotoFiles(files) {
+      for (const original of [...files]) {
+        if (!original.type.startsWith('image/')) continue;
+        const file = await compressImage(original);
         const reader = new FileReader();
         reader.onload = e => { pendingPhotos.push({ file, dataUrl: e.target.result, name: file.name, existing: false }); renderPhotoPreview(); };
         reader.readAsDataURL(file);
-      });
+      }
       document.getElementById('photoFileInput').value = '';
     }
     function renderPhotoPreview() {
@@ -2966,12 +3015,9 @@
       bar.classList.remove('revealed');
     });
 
-    // フィルターバーは非スティッキー（スクロールで流れる）になったため、
-    // 年号見出しは常に画面最上部(0)に固定する
+    // フィルターバーは非スティッキー化済み（年号見出しの top:0 はCSSで固定）。
+    // 高さ変化時にTime Machineの位置キャッシュだけ無効化する
     function updateStickyTop() {
-      document.querySelectorAll('.year-divider').forEach(el => {
-        el.style.top = '0px';
-      });
       tmMeas = [];
     }
 
@@ -3035,7 +3081,7 @@
       if (!tmMeas.length) tmMeasure();
       const vh = window.innerHeight;
       const y = window.scrollY;
-      const focal = vh * 0.58;        // 焦点。ここより上（通過済み）が奥へ遡る
+      const focal = vh * 0.40;        // 焦点。ここより上（通過済み）が奥へ遡る（低め=フェード開始を遅らせる）
       const vanish = 100;             // 年号見出しの下端付近で消えきる
       const span = Math.max(120, focal - vanish);
       for (let i = 0; i < tmMeas.length; i++) {
@@ -3048,7 +3094,7 @@
           const a = Math.max(0, Math.min(1, (focal - center) / span));
           const e = a * a;
           m.el.style.transform = `perspective(1200px) translateZ(${(-e * 440).toFixed(1)}px) rotateX(${(e * 13).toFixed(2)}deg)`;
-          m.el.style.opacity = (1 - a).toFixed(3);
+          m.el.style.opacity = (1 - e).toFixed(3); // イーズイン: ギリギリまでくっきり、最後にスッと消す
           m.el.classList.add('tm-active');
           m.el.dataset.tm = '1';
         } else if (m.el.dataset.tm === '1') {
@@ -3219,8 +3265,9 @@
       };
       const DEFAULT_RGB = [156, 163, 175];
 
-      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'low-power' });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isMobile, alpha: true, powerPreference: 'low-power' });
+      // モバイルは解像度倍率を抑えて描画負荷を軽減
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
 
       const scene = new THREE.Scene();
@@ -3228,7 +3275,7 @@
       camera.position.set(0, 0, 24);
 
       // ── 塵パーティクル（奥行き用の微光） ──
-      const DUST = isMobile ? 500 : 1600;
+      const DUST = isMobile ? 300 : 1600;
       const dustPos = new Float32Array(DUST * 3);
       const dustSeed = new Float32Array(DUST);
       for (let i = 0; i < DUST; i++) {
@@ -3383,9 +3430,14 @@
       let paused = false;
       document.addEventListener('visibilitychange', () => { paused = document.hidden; });
 
-      function animate() {
+      // モバイルは約30fpsに間引いてGPU負荷を半減
+      const minFrameMs = isMobile ? 33 : 0;
+      let lastFrame = 0;
+      function animate(now) {
         requestAnimationFrame(animate);
         if (paused) return;
+        if (now - lastFrame < minFrameMs) return;
+        lastFrame = now;
         const t = clock.getElapsedTime();
         starUniforms.uTime.value = t;
         dustMat.uniforms.uTime.value = t;
@@ -3408,7 +3460,7 @@
 
         renderer.render(scene, camera);
       }
-      animate();
+      requestAnimationFrame(animate);
 
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
