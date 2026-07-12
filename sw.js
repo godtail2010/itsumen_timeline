@@ -1,10 +1,10 @@
-const CACHE_NAME = 'itsumen-timeline-v5';
+const CACHE_NAME = 'itsumen-timeline-v6';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icon.svg',
-  './top_title_white.png',
+  './top_title.png',
   './top_poster.jpg'
 ];
 
