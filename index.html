@@ -5,6 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>いつメン年表</title>
+  <meta name="description" content="いつメンの思い出を集めた年表アルバム。飲み会・キャンプ・旅行・ライブ…16年分のメモリーアーカイブ。">
+  <!-- OGP: シェア時のプレビューカード（og:imageは公開後に絶対URLへ書き換えると確実） -->
+  <meta property="og:title" content="いつメン年表">
+  <meta property="og:description" content="いつメンの思い出を集めた年表アルバム。16年分のメモリーアーカイブ。">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="top_poster.jpg">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f1115">
   <link rel="apple-touch-icon" sizes="180x180" href="icon.png?v=2">
@@ -200,7 +207,8 @@
       max-height: 160px;
       width: auto;
       display: block;
-      filter: brightness(1.2);
+      /* 透過・白文字ロゴ（top_title_white.png）。夜景に直接浮かぶよう影で可読性を確保 */
+      filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 8px 28px rgba(0, 0, 0, 0.6));
     }
 
     .header-sub {
@@ -208,6 +216,42 @@
       color: var(--text-dim);
       letter-spacing: 0.05em;
       animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    /* ヒーロー下部のスクロールヒント */
+    .scroll-hint {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      z-index: 2;
+      pointer-events: none;
+      animation: bob 2.4s ease-in-out infinite;
+    }
+
+    .scroll-hint::after {
+      content: '↓';
+      display: block;
+      text-align: center;
+      margin-top: 2px;
+      letter-spacing: 0;
+    }
+
+    @keyframes bob {
+
+      0%,
+      100% {
+        transform: translate(-50%, 0);
+      }
+
+      50% {
+        transform: translate(-50%, 8px);
+      }
     }
 
     .stats-row {
@@ -2273,16 +2317,16 @@
     <div class="header-overlay"></div>
     <div class="header-content">
       <p class="header-label">Memory Archive · Friends Chronicle</p>
-      <h1><img src="top_title.png" alt="いつメン年表"></h1>
+      <h1><img src="top_title_white.png?v=3" alt="いつメン年表"></h1>
       <p class="header-sub">Yokohama & Beyond</p>
       <div class="stats-row">
         <div class="stat"><span class="stat-num" id="total-count">0</span><span class="stat-label">TOTAL EVENTS</span>
         </div>
         <div class="stat"><span class="stat-num" id="year-count">0</span><span class="stat-label">YEARS</span></div>
-        <div class="stat"><span class="stat-num" id="cat-count">0</span><span class="stat-label">CATEGORIES</span></div>
+        <div class="stat"><span class="stat-num" id="photo-count">0</span><span class="stat-label">PHOTOS</span></div>
       </div>
     </div>
-   
+    <div class="scroll-hint" aria-hidden="true">Scroll</div>
   </header>
 
   <!-- ◯年前の今日（データがある時だけJSが表示） -->
@@ -2642,6 +2686,13 @@
         applyFilters();
         updateStats();
         buildMemoryFlash();
+        // 初回訪問時だけタイムマシン機能を案内（一度きり）
+        if (!localStorage.getItem('tmHintShown')) {
+          setTimeout(() => {
+            showToast('🕰 右下のボタンで「タイムマシン表示」が試せます');
+            localStorage.setItem('tmHintShown', '1');
+          }, 3000);
+        }
       } catch (e) {
         console.error('Load error:', e);
         showToast('⚠ データの読み込みに失敗しました');
@@ -2878,8 +2929,11 @@
       tweenNum(document.getElementById('total-count'), vis.length);
       const yrs = new Set(vis.map(el => events.find(e => e.id == el.dataset.id)?.date.split('-')[0]).filter(Boolean));
       tweenNum(document.getElementById('year-count'), yrs.size);
-      const cats = new Set(vis.map(el => events.find(e => e.id == el.dataset.id)?.cat).filter(Boolean));
-      tweenNum(document.getElementById('cat-count'), cats.size);
+      const photoTotal = vis.reduce((s, el) => {
+        const ev = events.find(e => e.id == el.dataset.id);
+        return s + (ev && ev.photos ? ev.photos.length : 0);
+      }, 0);
+      tweenNum(document.getElementById('photo-count'), photoTotal);
     }
 
     // ═══════════════════════════════
