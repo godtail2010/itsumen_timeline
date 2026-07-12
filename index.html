@@ -3518,7 +3518,7 @@
         card.addEventListener('click', () => {
           const i = tmCards.indexOf(card);
           if (i < 0) return;
-          if (Math.abs(i - tmTarget) < 0.5) {
+          if (i === Math.round(tmCurrent)) {
             // 前面カードをタップ → タイムマシンを閉じて年表のそのイベントへ
             closeTimeMachine();
             jumpToEvent(ev.id);
@@ -3570,6 +3570,8 @@
       card.style.transform = `translate(-50%,-50%) translateZ(${z.toFixed(1)}px) translateY(${y.toFixed(1)}px) rotateX(${rot.toFixed(2)}deg)`;
       card.style.opacity = op.toFixed(3);
       card.style.zIndex = String(10000 - Math.round(d * 100)); // 手前ほど大（フラット化時の前後保証）
+      // 透明なカード(通り過ぎ/最奥)はクリックを奪わないように無効化 → 前面カードのタップが効く
+      card.style.pointerEvents = op < 0.08 ? 'none' : 'auto';
       const dimEl = card.lastElementChild;
       if (dimEl) dimEl.style.opacity = dim.toFixed(3);
     }
@@ -3577,7 +3579,8 @@
     function tmRender() {
       for (let i = 0; i < tmCards.length; i++) {
         const d = i - tmCurrent;
-        if (d < -2 || d > TM_MAXV + 2) {
+        // 通り過ぎたカード(d<-0.6)は不可視なので隠す。最奥超えも隠す
+        if (d < -0.6 || d > TM_MAXV + 2) {
           if (tmCards[i].style.display !== 'none') tmCards[i].style.display = 'none';
           continue;
         }
