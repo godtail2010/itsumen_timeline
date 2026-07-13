@@ -1512,8 +1512,10 @@
       pointer-events: none;
     }
 
-    /* ── SCROLL REVEAL（IntersectionObserverがis-visibleを付与） ── */
-    @media (prefers-reduced-motion: no-preference) {
+    /* ── SCROLL REVEAL（IntersectionObserverがis-visibleを付与）──
+       デスクトップ限定。モバイルはカードを常時表示にして確実性・軽さを優先
+       （スクロール3D演出もモバイルでは無効なため、リビールに頼ると消えたままになる） */
+    @media (prefers-reduced-motion: no-preference) and (min-width: 769px) {
       .event-item {
         opacity: 0;
         transform: translateY(24px);
