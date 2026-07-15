@@ -1314,6 +1314,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s cubic-bezier(0.2, 0, 0, 1);
+      touch-action: none;
     }
 
     .lightbox.open {
@@ -3338,6 +3339,10 @@
         if (Math.abs(dy) > 80) closeLightbox();
       }
     }, { passive: true });
+
+    lightboxEl.addEventListener('touchmove', e => {
+      e.preventDefault();
+    }, { passive: false });
 
     // フィルターバーの外側クリックで閉じる
     document.addEventListener('mousedown', e => {
