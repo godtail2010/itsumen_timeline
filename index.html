@@ -3265,6 +3265,7 @@
     let lbLastTap = 0;
     let lbIsPinching = false;
     let lbSwipeLocked = false;
+    let lbPinchOccurred = false;
 
     function lbResetZoom() {
       const img = document.getElementById('lightboxImg');
@@ -3382,15 +3383,13 @@
 
     lightboxEl.addEventListener('touchstart', e => {
       const t = e.touches;
-      lbIsPinching = false;
-      lbSwipeLocked = false;
 
-      if (t.length === 2) {
-        // ピンチ開始
-        lbIsPinching = true;
-        lbPinchStartDist = lbTouchDist(t);
-        lbPinchStartZoom = lbZoom;
-      } else if (t.length === 1) {
+      if (t.length === 1) {
+        // 新しい単一タッチセッションの場合のみ初期化
+        lbIsPinching = false;
+        lbSwipeLocked = false;
+        lbPinchOccurred = false;
+
         lbTouchStartX = t[0].clientX;
         lbTouchStartY = t[0].clientY;
         lbPanStartX = lbPanX;
@@ -3402,10 +3401,8 @@
           // ダブルタップ → ズームトグル
           const img = document.getElementById('lightboxImg');
           if (lbZoom > 1.05) {
-            // 元に戻す
             lbResetZoom();
           } else {
-            // 2.5倍にズーム（タップ地点を中心に）
             const rect = img.getBoundingClientRect();
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
@@ -3417,10 +3414,16 @@
             lbApplyTransform();
           }
           lbLastTap = 0;
-          lbSwipeLocked = true; // このタッチではスワイプさせない
+          lbSwipeLocked = true; // このタッチセッションではスワイプさせない
         } else {
           lbLastTap = now;
         }
+      } else if (t.length === 2) {
+        // 2本指タッチ開始（ピンチズーム開始）
+        lbIsPinching = true;
+        lbPinchOccurred = true;
+        lbPinchStartDist = lbTouchDist(t);
+        lbPinchStartZoom = lbZoom;
       }
     }, { passive: true });
 
@@ -3437,10 +3440,13 @@
         const img = document.getElementById('lightboxImg');
         if (lbZoom > 1.02) {
           img.classList.add('zoomed');
+        } else {
+          img.classList.remove('zoomed');
         }
         lbClampPan();
         lbApplyTransform();
-      } else if (t.length === 1 && !lbIsPinching && !lbSwipeLocked) {
+      } else if (t.length === 1 && !lbIsPinching && !lbSwipeLocked && !lbPinchOccurred) {
+        // 単一指での操作（ピンチ発生歴がなく、ダブルタップロック等もない場合）
         const dx = t[0].clientX - lbTouchStartX;
         const dy = t[0].clientY - lbTouchStartY;
 
@@ -3451,23 +3457,44 @@
           lbClampPan();
           lbApplyTransform();
         }
-        // 等倍時のスワイプはtouchendで処理
       }
     }, { passive: false });
 
     lightboxEl.addEventListener('touchend', e => {
-      if (lbIsPinching) {
-        // ピンチ終了: 1倍以下にはさせない
-        if (lbZoom <= 1.05) lbResetZoom();
-        lbIsPinching = false;
+      const t = e.touches;
+
+      // 画面上に指が残っている間はスワイプ／クローズなどの処理を一切行わない
+      if (t.length > 0) {
+        if (lbIsPinching && t.length < 2) {
+          lbIsPinching = false;
+        }
         return;
       }
+
+      // すべての指が離れたとき
+      if (lbIsPinching) {
+        lbIsPinching = false;
+      }
+
+      // このタッチセッション中にピンチ（2本指）操作が行われていた場合、
+      // 指を離したときのスワイプ誤検知（クローズ等）を完全にキャンセルする
+      if (lbPinchOccurred) {
+        lbPinchOccurred = false;
+        if (lbZoom <= 1.05) {
+          lbResetZoom();
+        } else {
+          lbClampPan();
+          lbApplyTransform();
+        }
+        return;
+      }
+
       if (lbSwipeLocked) return;
 
       const dx = e.changedTouches[0].clientX - lbTouchStartX;
       const dy = e.changedTouches[0].clientY - lbTouchStartY;
 
-      // 等倍のときだけスワイプナビ／クローズ
+      // 等倍（またはほぼ等倍）のときのみ、スワイプナビまたはクローズを実行
       if (lbZoom <= 1.05) {
         if (Math.abs(dx) > Math.abs(dy)) {
           if (dx < -60) lightboxNav(1);
@@ -3475,6 +3502,10 @@
         } else {
           if (Math.abs(dy) > 80) closeLightbox();
         }
+      } else {
+        // ズーム中のドラッグ終了時は位置のクランプと反映
+        lbClampPan();
+        lbApplyTransform();
       }
     }, { passive: true });
 
