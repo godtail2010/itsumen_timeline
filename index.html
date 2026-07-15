@@ -1356,6 +1356,17 @@
       transform: scale(1);
     }
 
+    /* ズーム中は切り替えアニメーションを無効化し、JSでtransformを直接制御 */
+    .lightbox-img.zoomed {
+      transition: none !important;
+      border-radius: 0;
+      cursor: grab;
+    }
+
+    .lightbox-img.zoomed:active {
+      cursor: grabbing;
+    }
+
     /* 写真切り替え: 進行方向へブラーしながら退場（--slide-dir: 1=次へ / -1=前へ） */
     .lightbox.open .lightbox-img.slide-out {
       opacity: 0;
@@ -3245,16 +3256,60 @@
     ua.addEventListener('drop', e => { e.preventDefault(); ua.classList.remove('dragover'); handlePhotoFiles(e.dataTransfer.files); });
 
     let lbEventId = null, lbIndex = 0;
-    let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+
+    // ── ライトボックス ズーム・パン状態 ──
+    let lbZoom = 1, lbPanX = 0, lbPanY = 0;
+    let lbPinchStartDist = 0, lbPinchStartZoom = 1;
+    let lbTouchStartX = 0, lbTouchStartY = 0;
+    let lbPanStartX = 0, lbPanStartY = 0;
+    let lbLastTap = 0;
+    let lbIsPinching = false;
+    let lbSwipeLocked = false;
+
+    function lbResetZoom() {
+      const img = document.getElementById('lightboxImg');
+      lbZoom = 1; lbPanX = 0; lbPanY = 0;
+      img.classList.remove('zoomed');
+      img.style.transform = '';
+    }
+
+    function lbApplyTransform() {
+      const img = document.getElementById('lightboxImg');
+      img.style.transform = `scale(${lbZoom}) translate(${lbPanX / lbZoom}px, ${lbPanY / lbZoom}px)`;
+    }
+
+    function lbClampPan() {
+      const img = document.getElementById('lightboxImg');
+      const rect = img.getBoundingClientRect();
+      const vw = window.innerWidth, vh = window.innerHeight;
+      // 画像の実サイズ（zoom前）を取得
+      const natW = img.naturalWidth || rect.width;
+      const natH = img.naturalHeight || rect.height;
+      // 表示サイズ（zoom=1時）
+      const dispW = rect.width / lbZoom;
+      const dispH = rect.height / lbZoom;
+      // ズーム後に画面をはみ出す量だけパン可能
+      const maxPanX = Math.max(0, (dispW * lbZoom - vw) / 2);
+      const maxPanY = Math.max(0, (dispH * lbZoom - vh) / 2);
+      lbPanX = Math.max(-maxPanX, Math.min(maxPanX, lbPanX));
+      lbPanY = Math.max(-maxPanY, Math.min(maxPanY, lbPanY));
+    }
+
+    function lbTouchDist(t) {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
 
     function openLightbox(evId, idx) {
       lbEventId = evId; lbIndex = idx;
       const ev = events.find(e => e.id === evId);
       if (!ev || !ev.photos || !ev.photos.length) return;
       lbIndex = Math.min(idx, ev.photos.length - 1);
+      lbResetZoom();
       renderLightbox(ev);
       document.getElementById('lightbox').classList.add('open');
-      document.body.style.overflow = 'hidden'; // 背景スクロール禁止
+      document.body.style.overflow = 'hidden';
     }
 
     let lbSwapTimer = null;
@@ -3303,46 +3358,125 @@
     }
 
     function lightboxNav(dir) {
+      if (lbZoom > 1) return; // ズーム中はスワイプナビ無効
       const ev = events.find(e => e.id === lbEventId);
       if (!ev || !ev.photos || ev.photos.length < 2) return;
+      lbResetZoom();
       lbIndex = (lbIndex + dir + ev.photos.length) % ev.photos.length;
       renderLightbox(ev, dir);
     }
 
     function closeLightbox() {
+      lbResetZoom();
       document.getElementById('lightbox').classList.remove('open');
       document.body.style.overflow = '';
     }
 
     function closeLightboxOnBg(e) {
+      if (lbZoom > 1) return; // ズーム中は背景タップで閉じない
       if (e.target === document.getElementById('lightbox')) closeLightbox();
     }
 
+    // ── ライトボックス タッチ操作（ピンチズーム・ダブルタップ・パン・スワイプ） ──
     const lightboxEl = document.getElementById('lightbox');
+
     lightboxEl.addEventListener('touchstart', e => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
-    }, { passive: true });
+      const t = e.touches;
+      lbIsPinching = false;
+      lbSwipeLocked = false;
 
-    lightboxEl.addEventListener('touchend', e => {
-      touchEndX = e.changedTouches[0].screenX;
-      touchEndY = e.changedTouches[0].screenY;
-      const dx = touchEndX - touchStartX;
-      const dy = touchEndY - touchStartY;
+      if (t.length === 2) {
+        // ピンチ開始
+        lbIsPinching = true;
+        lbPinchStartDist = lbTouchDist(t);
+        lbPinchStartZoom = lbZoom;
+      } else if (t.length === 1) {
+        lbTouchStartX = t[0].clientX;
+        lbTouchStartY = t[0].clientY;
+        lbPanStartX = lbPanX;
+        lbPanStartY = lbPanY;
 
-      if (Math.abs(dx) > Math.abs(dy)) {
-        // 左右スワイプ: ナビゲーション
-        if (dx < -60) lightboxNav(1);
-        if (dx > 60) lightboxNav(-1);
-      } else {
-        // 上下スワイプ: 閉じる
-        if (Math.abs(dy) > 80) closeLightbox();
+        // ダブルタップ判定
+        const now = Date.now();
+        if (now - lbLastTap < 300) {
+          // ダブルタップ → ズームトグル
+          const img = document.getElementById('lightboxImg');
+          if (lbZoom > 1.05) {
+            // 元に戻す
+            lbResetZoom();
+          } else {
+            // 2.5倍にズーム（タップ地点を中心に）
+            const rect = img.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            lbZoom = 2.5;
+            lbPanX = (cx - lbTouchStartX) * (lbZoom - 1);
+            lbPanY = (cy - lbTouchStartY) * (lbZoom - 1);
+            lbClampPan();
+            img.classList.add('zoomed');
+            lbApplyTransform();
+          }
+          lbLastTap = 0;
+          lbSwipeLocked = true; // このタッチではスワイプさせない
+        } else {
+          lbLastTap = now;
+        }
       }
     }, { passive: true });
 
     lightboxEl.addEventListener('touchmove', e => {
-      e.preventDefault();
+      e.preventDefault(); // 背景スクロール防止
+      const t = e.touches;
+
+      if (t.length === 2) {
+        // ピンチズーム中
+        lbIsPinching = true;
+        const dist = lbTouchDist(t);
+        const newZoom = Math.max(1, Math.min(5, lbPinchStartZoom * (dist / lbPinchStartDist)));
+        lbZoom = newZoom;
+        const img = document.getElementById('lightboxImg');
+        if (lbZoom > 1.02) {
+          img.classList.add('zoomed');
+        }
+        lbClampPan();
+        lbApplyTransform();
+      } else if (t.length === 1 && !lbIsPinching && !lbSwipeLocked) {
+        const dx = t[0].clientX - lbTouchStartX;
+        const dy = t[0].clientY - lbTouchStartY;
+
+        if (lbZoom > 1.05) {
+          // ズーム中 → パン操作
+          lbPanX = lbPanStartX + dx;
+          lbPanY = lbPanStartY + dy;
+          lbClampPan();
+          lbApplyTransform();
+        }
+        // 等倍時のスワイプはtouchendで処理
+      }
     }, { passive: false });
+
+    lightboxEl.addEventListener('touchend', e => {
+      if (lbIsPinching) {
+        // ピンチ終了: 1倍以下にはさせない
+        if (lbZoom <= 1.05) lbResetZoom();
+        lbIsPinching = false;
+        return;
+      }
+      if (lbSwipeLocked) return;
+
+      const dx = e.changedTouches[0].clientX - lbTouchStartX;
+      const dy = e.changedTouches[0].clientY - lbTouchStartY;
+
+      // 等倍のときだけスワイプナビ／クローズ
+      if (lbZoom <= 1.05) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          if (dx < -60) lightboxNav(1);
+          if (dx > 60) lightboxNav(-1);
+        } else {
+          if (Math.abs(dy) > 80) closeLightbox();
+        }
+      }
+    }, { passive: true });
 
     // フィルターバーの外側クリックで閉じる
     document.addEventListener('mousedown', e => {
