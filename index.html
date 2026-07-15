@@ -3482,8 +3482,11 @@
     const progressEl = document.getElementById('scrollProgress');
     let progressTicking = false;
     function updateProgress() {
+      const sy = window.scrollY || 0;
       const max = document.documentElement.scrollHeight - window.innerHeight;
-      progressEl.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+      const rawP = max > 0 ? sy / max : 0;
+      const p = isNaN(rawP) ? 0 : Math.max(0, Math.min(1, rawP));
+      progressEl.style.transform = `scaleX(${p})`;
       updateTimeMachine();
       updateYearUI();
       progressTicking = false;
@@ -3880,8 +3883,10 @@
 
       let scrollP = 0;
       function updateScroll() {
+        const sy = window.scrollY || 0;
         const max = document.documentElement.scrollHeight - window.innerHeight;
-        scrollP = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+        const rawP = max > 0 ? sy / max : 0;
+        scrollP = isNaN(rawP) ? 0 : Math.max(0, Math.min(1, rawP));
       }
       window.addEventListener('scroll', updateScroll, { passive: true });
       updateScroll();
