@@ -1098,7 +1098,9 @@
     .form-input,
     .form-select,
     .form-textarea {
+      display: block;
       width: 100%;
+      max-width: 100%;
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -1130,7 +1132,7 @@
 
     .form-row-2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 20px;
     }
 
@@ -1734,7 +1736,7 @@
       }
 
       .form-row-2 {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         gap: 12px;
       }
 
